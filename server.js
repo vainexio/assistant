@@ -426,11 +426,11 @@ client.on("messageCreate", async (message) => {
 
             content += `${count}. ${args[i]}\n`;
             if (regionalFlag) {
-              content += `Default Price: ${priceNoAuth}\n`;
+              content += `Default Price: **${priceNoAuth}**\n-# Regional Pricing Enabled (**${priceAuth}** :flag_ph:)`;
             }
-            content += `Price${regionalFlag?' (PH)':''}: ${priceAuth}\n`;
-            if (!isNaN(rawAuth)) {
-              content += `You will receive${regionalFlag?' (PH)':''}: **${ctValue}** ${emojis.robux}\n${regionalFlag}`;
+            if (!isNaN(rawAuth) && !regionalFlag) {
+              content += `Price: ${priceAuth}\n`;
+              content += `You will receive: **${ctValue}** ${emojis.robux}\n`;
             }
             content += `\n`;
           }
