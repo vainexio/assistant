@@ -210,7 +210,7 @@ client.on("messageCreate", async (message) => {
         let eCode = expCodes.find(e => e.code === codes[i].code)
         let auth = {
           method: 'GET',
-          headers: { 'Authorization': 'Bot '+token2 }
+          headers: { 'Authorization': 'Bot '+token }
         }
         let res = eCode ? eCode : await fetch('https://discord.com/api/v10/entitlements/gift-codes/'+codes[i].code,auth)
         res = eCode ? eCode : await res.json()

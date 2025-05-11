@@ -55,7 +55,7 @@ module.exports = {
   },
   getChannel: async function (id) {
   id = id ? id.replace(/<|#|>/g,'') : 0
-  let channel = !isNaN(id) ? await client.channels.cache.get(id) : null
+  let channel = !isNaN(id) ? await client.channels.fetch(id) : null
   return channel;
 },
   //Get Guild
