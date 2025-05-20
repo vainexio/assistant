@@ -346,134 +346,128 @@ client.on("messageCreate", async (message) => {
   if ((['scan', 'nct', 'ct'].includes(message.content.toLowerCase())) && shop.scannerWhitelist.find(g => g === message.guild?.id)) {
   if (message.type === 'REPLY') {
     let msg = await message.channel.messages.fetch(message.reference.messageId);
-    if (msg) {
-      try {
-        let args = getArgs(msg.content);
-        if (args.length < 1 || !msg.content.includes('roblox.com')) {
-          return message.reply('⚠️ No roblox links were found!');
-        }
+    if (!msg) return;
 
-        await message.react(emojis.loading);
-
-        let content = '';
-        let count = 0;
-        let total = 0;
-        let commandType = message.content.toLowerCase();
-
-        let auth = {
-          method: "GET",
-          headers: {
-            "Content-Type": 'application/json',
-            "Accept": "*/*",
-            "x-csrf-token": handler.cToken(),
-            "Cookie": process.env.Cookie,
-          },
-        };
-
-        for (let i in args) {
-          if (!args[i].includes('roblox.com')) continue;
-          count++;
-
-          // fetch with auth
-          let response = await fetch(args[i].replace(',', '') + '?nl=true', auth);
-          if (response.status === 403 || response.status === 401) {
-            let csrfToken = await handler.refreshToken(process.env.Cookie);
-            auth.headers["x-csrf-token"] = csrfToken;
-            response = await fetch(args[i].replace(',', '') + '?nl=true', auth);
-          }
-          let htmlContent = await response.text();
-          let $ = cheerio.load(htmlContent);
-
-          // parse auth price
-          let priceAuth = null;
-          if ($('.text-robux-lg').length > 0) {
-            priceAuth = $('.text-robux-lg').text().trim();
-          } else if (args[i].includes('catalog')) {
-            const itemId = url => url.match(/\/catalog\/(\d+)/)?.[1] || 0;
-            let res = await fetch(
-              'https://catalog.roblox.com/v1/catalog/items/' +
-                itemId(args[i]) +
-                '/details?itemType=Asset'
-            );
-            let json = await res.json();
-            priceAuth = json.errors ? "Can't scan catalog items" : json.price.toString();
-          }
-
-          let rawAuth =
-            priceAuth !== "Can't scan catalog items"
-              ? Number(priceAuth.replace(/,|Price: /g, ''))
-              : priceAuth;
-          let ctValue = !isNaN(rawAuth) ? Math.floor(rawAuth * 0.7) : rawAuth;
-
-          if (commandType === 'scan') {
-            // only for scan: do no‐auth fetch & compare
-            let respNoAuth = await fetch(args[i].replace(',', '') + '?nl=true');
-            let htmlNoAuth = await respNoAuth.text();
-            let $noAuth = cheerio.load(htmlNoAuth);
-            let priceNoAuth = $noAuth('.text-robux-lg').text().trim() || null;
-            if (!priceNoAuth && args[i].includes('catalog')) {
-              const itemId = url => url.match(/\/catalog\/(\d+)/)?.[1] || 0;
-              let resNoAuth = await fetch(
-                'https://catalog.roblox.com/v1/catalog/items/' +
-                  itemId(args[i]) +
-                  '/details?itemType=Asset'
-              );
-              let jsonNoAuth = await resNoAuth.json();
-              priceNoAuth = jsonNoAuth.errors ? "Can't scan catalog items" : jsonNoAuth.price.toString();
-            }
-
-            let regionalFlag = priceNoAuth !== priceAuth ? '-# '+emojis.warning+' **Regional pricing detected**\n' : '';
-
-            content += `${count}. ${args[i]}\n`;
-            if (regionalFlag) {
-              content += `Default Price: **${priceNoAuth}**\n-# Regional Pricing Enabled (**${priceAuth}** :flag_ph:)`;
-            }
-            if (!isNaN(rawAuth) && !regionalFlag) {
-              content += `Price: ${priceAuth}\n`;
-              content += `You will receive: **${ctValue}** ${emojis.robux}\n`;
-            }
-            content += `\n`;
-          }
-          else if (commandType === 'nct') {
-            if (!isNaN(rawAuth)) total += rawAuth;
-            content += priceAuth + ': ' + args[i] + '\n';
-          }
-          else if (commandType === 'ct') {
-            if (!isNaN(ctValue)) total += ctValue;
-            content += ctValue + ': ' + args[i] + '\n';
-          }
-        }
-
-        let err = content.includes('NaN')
-          ? '\n' + emojis.warning + ' A link resulted in an invalid price. Rescan is recommended.'
-          : '';
-        if (commandType === 'nct') {
-          content +=
-            '\n\n' +
-            count +
-            ' gamepass link' +
-            (count > 1 ? 's' : '') +
-            ' (NCT): ' +
-            total +
-            err;
-        } else if (commandType === 'ct') {
-          content +=
-            '\n\n' +
-            count +
-            ' gamepass link' +
-            (count > 1 ? 's' : '') +
-            ' (CT): ' +
-            total +
-            err;
-        }
-
-        await message.channel.send(content);
-      } catch (err) {
-        message.reply(err.message);
+    try {
+      let args = getArgs(msg.content);
+      if (args.length < 1 || !msg.content.includes('roblox.com')) {
+        return message.reply('⚠️ No roblox links were found!');
       }
+
+      await message.react(emojis.loading);
+
+      let content = '';
+      let count = 0;
+      let total = 0;
+      let commandType = message.content.toLowerCase();
+
+      // Prepare auth headers with CSRF token and cookie
+      let csrfToken = handler.cToken();
+      const authHeaders = () => ({
+        'Content-Type': 'application/json',
+        'Accept': '*/*',
+        'x-csrf-token': csrfToken,
+        'Cookie': process.env.Cookie,
+      });
+
+      for (let link of args) {
+        if (!link.includes('roblox.com')) continue;
+        count++;
+        let priceAuth = null;
+        let rawAuth = null;
+        let ctValue = null;
+        let isRegional = false;
+
+        // Extract numeric ID from URL
+        const idMatch = link.match(/(game-pass|gamepasses|catalog)\/(\d+)/i);
+        const itemId = idMatch ? idMatch[2] : null;
+        const isGamePass = idMatch && /game-pass|gamepasses/i.test(idMatch[1]);
+        const isCatalog  = itemId && /catalog/i.test(link);
+
+        if (isGamePass && itemId) {
+          // Fetch via Game Pass API
+          let res = await fetch(`https://apis.roblox.com/game-passes/v1/game-passes/${itemId}/details`, {
+            method: 'GET',
+            headers: authHeaders()
+          });
+          if (res.status === 401 || res.status === 403) {
+            csrfToken = await handler.refreshToken(process.env.Cookie);
+            res = await fetch(`https://apis.roblox.com/game-passes/v1/game-passes/${itemId}/details`, {
+              method: 'GET',
+              headers: authHeaders()
+            });
+          }
+          const json = await res.json();
+          priceAuth = json.priceInformation.defaultPriceInRobux;
+          rawAuth = Number(priceAuth);
+          isRegional = Array.isArray(json.priceInformation.enabledFeatures) && json.priceInformation.enabledFeatures.includes('RegionalPricing');
+          ctValue = !isNaN(rawAuth)
+            ? Math.floor(rawAuth * (1 - (json.marketPlaceFeesPercentage || 0)))
+            : rawAuth;
+        }
+        else if (isCatalog && itemId) {
+          // Fallback to catalog endpoint for shirt/pants
+          let res = await fetch(
+            `https://catalog.roblox.com/v1/catalog/items/${itemId}/details?itemType=Asset`
+          );
+          let json = await res.json();
+          if (json.errors) {
+            priceAuth = "Can't scan catalog items";
+          } else {
+            priceAuth = json.price;
+          }
+          rawAuth = Number(priceAuth);
+          ctValue = !isNaN(rawAuth) ? Math.floor(rawAuth * 0.7) : rawAuth;
+        }
+        else {
+          // Unrecognized link type
+          priceAuth = "Unsupported link";
+        }
+
+        // Build content based on command
+        if (commandType === 'scan') {
+          // Regional detection only; no second fetch needed
+          const regionalFlag = isRegional
+            ? `-# ${emojis.warning} **Regional pricing detected**\n`
+            : '';
+
+          content += `${count}. ${link}\n`;
+          if (regionalFlag) {
+            content += `Price: **${priceAuth}**\n${regionalFlag}`;
+          }
+          if (!isNaN(rawAuth) && !isRegional) {
+            content += `Price: ${priceAuth}\n`;
+            content += `You will receive: **${ctValue}** ${emojis.robux}\n`;
+          }
+          content += `\n`;
+        } else if (commandType === 'nct') {
+          if (!isNaN(rawAuth)) total += rawAuth;
+          content += `${priceAuth}: ${link}\n`;
+        } else if (commandType === 'ct') {
+          if (!isNaN(ctValue)) total += ctValue;
+          content += `${ctValue}: ${link}\n`;
+        }
+      }
+
+      // Final summary and send
+      const errNote = content.includes('NaN')
+        ? `\n${emojis.warning} A link resulted in an invalid price. Rescan is recommended.`
+        : '';
+
+      if (commandType === 'nct') {
+        content += `\n\n${count} gamepass link${count > 1 ? 's' : ''} (NCT): ${total}${errNote}`;
+      } else if (commandType === 'ct') {
+        content += `\n\n${count} gamepass link${count > 1 ? 's' : ''} (CT): ${total}${errNote}`;
+      }
+
+      await message.channel.send(content);
+    } catch (err) {
+      message.reply(err.message);
     }
   }
 }
+
+  
   if (message.content.toLowerCase().startsWith('max:') && shop.scannerWhitelist.find(g => g === message.guild?.id)) {
     if (message.type === 'REPLY') {
       let msg = await message.channel.messages.fetch(message.reference.messageId)
