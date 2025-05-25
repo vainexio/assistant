@@ -599,42 +599,29 @@ let tStocks = 0
 const tunnel = require('tunnel');
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // Disable SSL validation
 
-const API_URL = 'https://growagardenvalues.com/stock/get_stock_data.php';
-let previousData = null;
-async function pollStock() {
-  try {
-    const res = await fetch(API_URL);
-    if (!res.ok) {
-      console.error('API fetch error:', res.statusText);
-      return;
-    }
-    const data = await res.json();
-    const strData = JSON.stringify(data);
-
-    // On first run or data change, send an embed
-    if (previousData === null || previousData !== strData) {
-      const channel = await client.channels.fetch(CHANNEL_ID);
-      if (!channel) {
-        console.error('Unable to find channel:', CHANNEL_ID);
-        return;
+let oldSeeds = [];
+let oldGears = [];
+let oldEggs = [];
+setInterval(async function() {
+  let stocks = await fetch('https://growagardenvalues.com/stock/get_stock_data.php')
+  if (stocks.status == 200) {
+    stocks = await stocks.json();
+    if (stocks.success == true) {
+      if (JSON.stringify(stocks.gear) === JSON.stringify(oldGears) || JSON.stringify(stocks.seeds) === JSON.stringify(oldSeeds) || JSON.stringify(stocks.eggs) === JSON.stringify(oldEggs)) {
+        
+        for (let i in stocks.gear) {
+          let gear = stocks.gear[i]
+          oldGears += "**`"+gear.quantity+""+gear.name
+        }
+        let embed = new MessageEmbed()
+        .setTitle()
+        .addFields(
+        {name: "SEEDS", value: },
+        )
       }
-      const embed = new MessageEmbed()
-        .setTitle('🌱 Stock Data Update')
-        .setDescription('Latest stock snapshot:')
-        .addField('```json', `${strData}
-`, false)
-        .setTimestamp();
-
-      await channel.send({ embeds: [embed] });
-      previousData = strData;
     }
-    // else: no change, do nothing
-  } catch (err) {
-    console.error('pollStock error:', err);
   }
-}
-setInterval(pollStock, 5 * 60 * 1000);
-
+},120000)
 process.on('unhandledRejection', async error => {
   ++errors
   console.log(error);
