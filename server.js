@@ -599,51 +599,6 @@ let tStocks = 0
 const tunnel = require('tunnel');
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // Disable SSL validation
 
-let oldSeeds = [];
-let oldGears = [];
-let oldEggs = [];
-let timeInterval = 30000;
-let firstTime = true
-setInterval(async function() {
-  let stocks = await fetch('https://growagardenvalues.com/stock/get_stock_data.php')
-  if (stocks.status == 200) {
-    stocks = await stocks.json();
-    if (stocks.success == true) {
-      if (JSON.stringify(stocks.gear) !== JSON.stringify(oldGears) || JSON.stringify(stocks.seeds) !== JSON.stringify(oldSeeds) || JSON.stringify(stocks.eggs) !== JSON.stringify(oldEggs)) {
-        oldGears = stocks.gear
-        oldSeeds = stocks.seeds
-        oldEggs = stocks.eggs
-        if (!firstTime) timeInterval = 300000
-        firstTime = false
-        let gears = ""
-        let seeds = ""
-        let eggs = ""
-        for (let i in stocks.gear) {
-          let gear = stocks.gear[i]
-          gears += "** `"+gear.quantity+"x `** "+gear.name+"\n"
-        }
-        for (let i in stocks.seeds) {
-          let seed = stocks.seeds[i]
-          seeds += "** `"+seed.quantity+"x `** "+seed.name+"\n"
-        }
-        for (let i in stocks.eggs) {
-          let egg = stocks.eggs[i]
-          eggs += "** `"+egg.quantity+"x `** "+egg.name+"\n"
-        }
-        console.log(seeds,gears,eggs)
-        let embed = new MessageEmbed()
-        .setTitle("Grow a Garden Stocks")
-        .addFields(
-          {name: "SEEDS", value: seeds},
-          {name: "GEARS", value: gears},
-          {name: "GEARS", value: eggs},
-        )
-        let channel = await getChannel('1376086938616074321')
-        await channel.send({embeds: [embed]})
-      }
-    }
-  }
-},timeInterval)
 process.on('unhandledRejection', async error => {
   ++errors
   console.log(error);
