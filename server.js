@@ -402,7 +402,7 @@ client.on("messageCreate", async (message) => {
           rawAuth = Number(priceAuth);
           isRegional = Array.isArray(json.priceInformation.enabledFeatures) && json.priceInformation.enabledFeatures.includes('RegionalPricing');
           ctValue = !isNaN(rawAuth)
-            ? Math.floor(rawAuth * (1 - (json.marketPlaceFeesPercentage || 0)))
+            ? Math.floor(rawAuth * 0.7)
             : rawAuth;
         }
         else if (isCatalog && itemId) {
