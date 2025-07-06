@@ -593,6 +593,41 @@ client.on("messageCreate", async (message) => {
   }
 });//END MESSAGE CREATE
 
+client.on('interactionCreate', async inter => {
+  
+  if (inter.isCommand()) {
+    let cname = inter.commandName
+    if (cname === 'eligible') {
+      let options = inter.options._hoistedOptions
+      let username = options.find(a => a.name === 'username')
+      let ctAmount = options.find(a => a.name === 'ct')
+      await inter.deferReply();
+      
+      // Search user
+      let user = await handler.getUser(username.value)
+      if (user.error) return inter.editReply({content: user.error})
+      if (!user) return inter.editReply({content: emojis.warning+" User not found."})
+      
+      // Search games
+      let games = await fetch('https://games.roblox.com/v2/users/'+user.id+'/games?limit=50')
+      games = await games.json()
+      let data = games.data
+      if (!data || data.length == 0) return inter.editReply({content: emojis.warning+" User does not have a game."})
+      for (let i in data) {
+        let game = data[i]
+        let passes = await fetch('https://games.roblox.com/v1/games/'+game.id+'/game-passes?limit=50')
+        passes = await passes.json()
+        let passData = passes.data
+        if (passes && passes.length > 0) {
+          for (let i in passData) {
+            let gamepass = passData[i]
+            if (gamepass.price*.7 == ctAmount)
+          }
+        }
+      }
+    }
+  }
+})
 let yay = true
 let cStocks = 0
 let tStocks = 0
