@@ -15,6 +15,24 @@ module.exports = {
   register: true,
   deleteSlashes: ['1272095323275132990'],
   slashes: [
-   
+   {
+      "name": "getlink",
+      "type": 1,
+      "description": "Find gamepass link",
+      "options": [
+        {
+          "name": 'username',
+          "description": 'Roblox username',
+          "type": 3,
+          "required": true,
+        },
+        {
+          "name": 'ct',
+          "description": 'Gamepass price',
+          "type": 10,
+          "required": true,
+        },
+      ]
+    },
   ],
 };

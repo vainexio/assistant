@@ -53,6 +53,32 @@ client.on("debug", function(info) {
 });
 //When bot is ready
 client.on("ready", async () => {
+  //Register
+  if (slashCmd.register) {
+    let discordUrl = "https://discord.com/api/v10/applications/"+client.user.id+"/commands"
+    let headers = {
+      "Authorization": "Bot "+token,
+      "Content-Type": 'application/json'
+    }
+    for (let i in slashes) {
+      let json = slashes[i]
+      await sleep(2000)
+      let response = await fetch(discordUrl, {
+        method: 'post',
+        body: JSON.stringify(json),
+        headers: headers
+      });
+      console.log(json.name+' - '+response.status)
+    }
+    for (let i in slashCmd.deleteSlashes) {
+      let deleteUrl = "https://discord.com/api/v10/applications/"+client.user.id+"/commands/"+slashCmd.deleteSlashes[i]
+      let deleteRes = await fetch(deleteUrl, {
+        method: 'delete',
+        headers: headers
+      })
+      console.log('Delete - '+deleteRes.status)
+      }
+  }
   console.log('Successfully logged in to discord bot.')
 })
 module.exports = {
@@ -597,10 +623,11 @@ client.on('interactionCreate', async inter => {
   
   if (inter.isCommand()) {
     let cname = inter.commandName
-    if (cname === 'eligible') {
+    if (cname === 'getlink') {
       let options = inter.options._hoistedOptions
       let username = options.find(a => a.name === 'username')
       let ctAmount = options.find(a => a.name === 'ct')
+      let found = false
       await inter.deferReply();
       
       // Search user
@@ -614,17 +641,23 @@ client.on('interactionCreate', async inter => {
       let data = games.data
       if (!data || data.length == 0) return inter.editReply({content: emojis.warning+" User does not have a game."})
       for (let i in data) {
+        if (found) break;
         let game = data[i]
         let passes = await fetch('https://games.roblox.com/v1/games/'+game.id+'/game-passes?limit=50')
         passes = await passes.json()
         let passData = passes.data
-        if (passes && passes.length > 0) {
+        if (passData && passData.length > 0) {
           for (let i in passData) {
             let gamepass = passData[i]
-            if (gamepass.price*.7 == ctAmount)
+            if (Math.floor(gamepass.price*0.7) == ctAmount.value) {
+              found = true
+              await inter.editReply(emojis.check+" Link found:\nhttps://www.roblox.com/game-pass/"+gamepass.id)
+              break;
+            }
           }
         }
       }
+      if (!found) await inter.editReply(emojis.warning+" User does not have **"+ctAmount.value+" CT** gamepass")
     }
   }
 })
