@@ -643,7 +643,7 @@ client.on('interactionCreate', async inter => {
   if (!user) return inter.editReply({ content: emojis.warning + " User not found." });
 
   let targetPrice = ctAmount 
-    ? Math.round(ctAmount.value / 0.7) 
+    ? Math.ceil(ctAmount.value / 0.7) 
     : nctAmount.value;
 
   let baseAmount = ctAmount ? ctAmount.value : nctAmount.value;
@@ -685,9 +685,9 @@ client.on('interactionCreate', async inter => {
 
   if (!foundExact) {
     if (closestMatch) {
-      await inter.editReply(emojis.warning + ` No exact **${searchType}** match for ${baseAmount}, but found close match at ${closestMatch.price}:\nhttps://www.roblox.com/game-pass/${closestMatch.id}`);
+      await inter.editReply(emojis.warning + ` No exact **${searchType}** match for ${baseAmount}${searchType == "CT" ? ` (${targetPrice})` : ''}, but found close match at ${closestMatch.price}:\nhttps://www.roblox.com/game-pass/${closestMatch.id}`);
     } else {
-      await inter.editReply(emojis.warning + ` No gamepass found near **${baseAmount} ${searchType}**.`);
+      await inter.editReply(emojis.warning + ` No gamepass found near **${baseAmount} ${searchType == "CT" ? `(${targetPrice})` : ''}**.`);
     }
   }
 }
