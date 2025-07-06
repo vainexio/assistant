@@ -624,41 +624,72 @@ client.on('interactionCreate', async inter => {
   if (inter.isCommand()) {
     let cname = inter.commandName
     if (cname === 'getlink') {
-      let options = inter.options._hoistedOptions
-      let username = options.find(a => a.name === 'username')
-      let ctAmount = options.find(a => a.name === 'ct')
-      let found = false
-      await inter.deferReply();
-      
-      // Search user
-      let user = await handler.getUser(username.value)
-      if (user.error) return inter.editReply({content: user.error})
-      if (!user) return inter.editReply({content: emojis.warning+" User not found."})
-      
-      // Search games
-      let games = await fetch('https://games.roblox.com/v2/users/'+user.id+'/games?limit=50')
-      games = await games.json()
-      let data = games.data
-      if (!data || data.length == 0) return inter.editReply({content: emojis.warning+" User does not have a game."})
-      for (let i in data) {
-        if (found) break;
-        let game = data[i]
-        let passes = await fetch('https://games.roblox.com/v1/games/'+game.id+'/game-passes?limit=50')
-        passes = await passes.json()
-        let passData = passes.data
-        if (passData && passData.length > 0) {
-          for (let i in passData) {
-            let gamepass = passData[i]
-            if (Math.floor(gamepass.price*0.7) == ctAmount.value) {
-              found = true
-              await inter.editReply(emojis.check+" Link found:\nhttps://www.roblox.com/game-pass/"+gamepass.id)
-              break;
-            }
-          }
+  let options = inter.options._hoistedOptions;
+  let username = options.find(a => a.name === 'username');
+  let ctAmount = options.find(a => a.name === 'ct');
+  let nctAmount = options.find(a => a.name === 'nct');
+
+  if ((ctAmount && nctAmount) || (!ctAmount && !nctAmount)) {
+    return inter.reply({
+      content: emojis.warning + " Please provide **either** `ct` **or** `nct` — not both.",
+      ephemeral: true
+    });
+  }
+
+  await inter.deferReply();
+  let user = await handler.getUser(username.value);
+  if (user.error) return inter.editReply({ content: user.error });
+  if (!user) return inter.editReply({ content: emojis.warning + " User not found." });
+
+  let targetPrice = ctAmount 
+    ? Math.round(ctAmount.value / 0.7) 
+    : nctAmount.value;
+
+  let baseAmount = ctAmount ? ctAmount.value : nctAmount.value;
+  let searchType = ctAmount ? "CT" : "NCT";
+
+  let games = await fetch(`https://games.roblox.com/v2/users/${user.id}/games?limit=50`);
+  games = await games.json();
+  let data = games.data;
+  if (!data || data.length === 0) {
+    return inter.editReply({ content: emojis.warning + " User does not have any games." });
+  }
+
+  let foundExact = false;
+  let closestMatch = null;
+
+  for (let game of data) {
+    if (foundExact) break;
+
+    let passes = await fetch(`https://games.roblox.com/v1/games/${game.id}/game-passes?limit=50`);
+    passes = await passes.json();
+
+    let passData = passes.data;
+    if (passData && passData.length > 0) {
+      for (let gamepass of passData) {
+        let price = gamepass.price;
+
+        if (price === targetPrice) {
+          foundExact = true;
+          await inter.editReply(emojis.check + ` Found exact **${baseAmount+" "+searchType}** match:\n${price}: https://www.roblox.com/game-pass/${gamepass.id}`);
+          break;
+        }
+
+        if (!closestMatch && (price === targetPrice + 1 || price === targetPrice - 1)) {
+          closestMatch = gamepass;
         }
       }
-      if (!found) await inter.editReply(emojis.warning+" User does not have **"+ctAmount.value+" CT** gamepass")
     }
+  }
+
+  if (!foundExact) {
+    if (closestMatch) {
+      await inter.editReply(emojis.warning + ` No exact **${searchType}** match for ${baseAmount}, but found close match at ${closestMatch.price}:\nhttps://www.roblox.com/game-pass/${closestMatch.id}`);
+    } else {
+      await inter.editReply(emojis.warning + ` No gamepass found near **${baseAmount} ${searchType}**.`);
+    }
+  }
+}
   }
 })
 let yay = true

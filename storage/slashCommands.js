@@ -28,9 +28,15 @@ module.exports = {
         },
         {
           "name": 'ct',
-          "description": 'Gamepass price',
+          "description": 'Covered rax price',
           "type": 10,
-          "required": true,
+          "required": false,
+        },
+        {
+          "name": 'nct',
+          "description": 'Not covered tax price',
+          "type": 10,
+          "required": false,
         },
       ]
     },
