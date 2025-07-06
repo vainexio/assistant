@@ -624,10 +624,11 @@ client.on('interactionCreate', async inter => {
   if (inter.isCommand()) {
     let cname = inter.commandName
     if (cname === 'getlink') {
-  let options = inter.options._hoistedOptions;
-  let username = options.find(a => a.name === 'username');
-  let ctAmount = options.find(a => a.name === 'ct');
-  let nctAmount = options.find(a => a.name === 'nct');
+      if (!shop.scannerWhitelist.find(g => g === inter.guild?.id)) return inter.reply(emojis.warning+" Server not whitelisted.")
+      let options = inter.options._hoistedOptions;
+      let username = options.find(a => a.name === 'username');
+      let ctAmount = options.find(a => a.name === 'ct');
+      let nctAmount = options.find(a => a.name === 'nct');
 
   if ((ctAmount && nctAmount) || (!ctAmount && !nctAmount)) {
     return inter.reply({

@@ -97,6 +97,7 @@ module.exports = {
         },
       ]
     },
+    scannerWhitelist_V2: [],
     scannerWhitelist: [
       "1139165021398642788", //baratie
       "1154694567166222336", //ethan shop
