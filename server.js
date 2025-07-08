@@ -342,15 +342,14 @@ client.on("messageCreate", async (message) => {
     shop.checkers = []
     !message.channel.type === 'DM' ? message.delete() : null
   }
-  if (message.content.startsWith('.regen')) {
-    await message.channel.send(".regen command was moved to <@1057167023492300881>")
-  }
+  
   if (message.content.length > 0 && message.content.toLowerCase().startsWith('.invite')) {
     let row = new MessageActionRow().addComponents(
           new MessageButton().setURL('https://discord.com/api/oauth2/authorize?client_id=1178955230608625704&permissions=8&scope=bot').setStyle('LINK').setEmoji('📩').setLabel("Invite Checkor"),
         );
     message.reply({components: [row]})
   }
+  if (message.author.bot || message.author.id !== "497918770187075595") return;
   let backupVouch = config.backupVouches.find(v => v.original === message.channel.id)
   if (backupVouch && message.channel.type !== 'DM') {
     if (message.attachments.size === 0) return;
@@ -622,7 +621,7 @@ client.on("messageCreate", async (message) => {
 
 client.on('interactionCreate', async inter => {
   
-  if (inter.isCommand() && inter.guild.id == "1109020434449575936") {
+  if (inter.isCommand() && inter.user.id == "497918770187075595") {
     let cname = inter.commandName
     if (cname === 'getlink') {
       if (!shop.scannerWhitelist.find(g => g === inter.guild?.id)) return inter.reply(emojis.warning+" Server not whitelisted.")
