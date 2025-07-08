@@ -80,6 +80,7 @@ client.on("ready", async () => {
       }
   }
   console.log('Successfully logged in to discord bot.')
+  client.user.setStatus('invisible');
 })
 module.exports = {
   client: client,
@@ -190,7 +191,7 @@ let nitroCodes = []
 
 client.on("messageCreate", async (message) => {
   let checkerVersion = 'Checker version 2.9'
-  if (message.author.bot) return;
+  if (message.author.bot || message.guild.id !== "1109020434449575936") return;
   if ((message.channel.type !== 'DM' && shop.checkerWhitelist.find(u => u === message.channel.id)) || (message.channel.name?.includes('nitro-checker') && shop.checkerWhitelist.find(u => u === message.author.id)) || (message.channel.type === 'DM' && shop.checkerWhitelist.find(u => u === message.author.id))) {
     let args = getArgs(message.content)
     if (args.length === 0) return;
@@ -621,7 +622,7 @@ client.on("messageCreate", async (message) => {
 
 client.on('interactionCreate', async inter => {
   
-  if (inter.isCommand()) {
+  if (inter.isCommand() && inter.guild.id == "1109020434449575936") {
     let cname = inter.commandName
     if (cname === 'getlink') {
       if (!shop.scannerWhitelist.find(g => g === inter.guild?.id)) return inter.reply(emojis.warning+" Server not whitelisted.")
