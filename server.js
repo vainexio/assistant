@@ -485,7 +485,7 @@ client.on("messageCreate", async (message) => {
         content += `\n\n${count} gamepass link${count > 1 ? 's' : ''} (CT): ${total}${errNote}`;
       }
 
-      await message.channel.send(content);
+      await safeSend(message.channel,content);
     } catch (err) {
       message.reply(err.message);
     }
