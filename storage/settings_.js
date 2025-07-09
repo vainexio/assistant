@@ -172,7 +172,7 @@ module.exports = {
     ],
     checkerWhitelist: [
       "497918770187075595", // Vai
-      "1297603178149187616", //December 8, 2025
+      "1041046106345328870", //December 8, 2025
     ],
     scanner: [],
     expected: [],
