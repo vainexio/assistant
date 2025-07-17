@@ -360,7 +360,7 @@ client.on("messageCreate", async (message) => {
     );
     message.reply({ components: [row] })
   }
-  if (message.author.bot || message.author.id !== "497918770187075595") return;
+  if (message.author.bot) return;
   let backupVouch = config.backupVouches.find(v => v.original === message.channel.id)
   if (backupVouch && message.channel.type !== 'DM') {
     if (message.attachments.size === 0) return;
