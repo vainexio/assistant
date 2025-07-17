@@ -657,6 +657,7 @@ client.on('interactionCreate', async inter => {
     }
     else if (cname === 'renew') {
       if (!await getPerms(inter.member, 4)) return inter.reply({ content: emojis.warning + ' Insufficient Permission' });
+      const options = inter.options._hoistedOptions;
       const daysToAdd = options.find(a => a.name === 'days').value;
       const server_id = options.find(a => a.name === 'server_id').value;
 
@@ -675,6 +676,7 @@ client.on('interactionCreate', async inter => {
     }
     else if (cname === 'remove') {
       if (!await getPerms(inter.member, 4)) return inter.reply({ content: emojis.warning + ' Insufficient Permission' });
+      const options = inter.options._hoistedOptions;
       const server_id = options.find(a => a.name === 'server_id').value;
 
       const result = await Subscription.findOneAndDelete({ serverId: server_id });
