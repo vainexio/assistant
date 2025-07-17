@@ -70,12 +70,6 @@ module.exports = {
           "type": 3,
           "required": true,
         },
-        {
-          "name": 'days',
-          "description": 'Extend days',
-          "type": 4,
-          "required": true,
-        },
       ]
     },
    {
