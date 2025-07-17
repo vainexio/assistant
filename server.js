@@ -33,6 +33,7 @@ myIntents.add(Intents.FLAGS.GUILD_PRESENCES, Intents.FLAGS.GUILDS, Intents.FLAGS
 const client = new Client({ intents: myIntents , partials: ["CHANNEL"] });
 //Env
 const token = process.env.SECRET;
+const mongooseToken = process.env.MONGOOSE;
 
 async function startApp() {
   let promise = client.login(token)
@@ -47,6 +48,9 @@ let cmd = false
 
 
 let ticketId = 10
+
+let Subscription
+let subscriptionSchema
 
 client.on("debug", function(info) {
   console.log(info)
@@ -79,8 +83,16 @@ client.on("ready", async () => {
       console.log('Delete - '+deleteRes.status)
       }
   }
+await mongoose.connect(mongooseToken);
+const subscriptionSchema = new mongoose.Schema({
+  userId: { type: String, required: true },
+  serverId: { type: String, required: true },
+  expiresAt: { type: Date, required: true },
+});
+
+subscriptionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+Subscription = mongoose.model('Subscription', subscriptionSchema);
   console.log('Successfully logged in to discord bot.')
-  client.user.setStatus('invisible');
 })
 module.exports = {
   client: client,
@@ -620,9 +632,54 @@ client.on("messageCreate", async (message) => {
 
 client.on('interactionCreate', async inter => {
   
-  if (inter.isCommand() && inter.user.id == "497918770187075595") {
+  if (inter.isCommand()) {
     let cname = inter.commandName
-    if (cname === 'getlink') {
+    if (cname === 'whitelist') {
+    const options = inter.options._hoistedOptions;
+  const user = options.find(a => a.name === 'user').user;
+  const expiration_days = options.find(a => a.name === 'expiration_days').value;
+  const server_id = options.find(a => a.name === 'server_id').value;
+
+  const expiresAt = moment().add(expiration_days, 'days').toDate();
+
+  await Subscription.findOneAndUpdate(
+    { userId: user.id, serverId: server_id },
+    { expiresAt },
+    { upsert: true, new: true }
+  );
+
+  await inter.reply({
+    content: `${emojis.check} Subscription for ${user.tag} set to expire in ${expiration_days} day(s).` });
+  }
+else if (cname === 'renew') {
+    const daysToAdd = options.find(a => a.name === 'days').value;
+    const server_id = options.find(a => a.name === 'server_id').value;
+
+    const sub = await Subscription.findOne({ userId: user.id, serverId: server_id });
+    if (!sub) {
+      return inter.reply({ content: `${emojis.on} No active subscription found for ${user.tag} on server ${server_id}.` });
+    }
+
+    const newExpiresAt = moment(sub.expiresAt).add(daysToAdd, 'days').toDate();
+    sub.expiresAt = newExpiresAt;
+    await sub.save();
+
+    return inter.reply({
+      content: `${emojis.check} Subscription for <@${sub.userId}> extended by ${daysToAdd} day(s). New expiration: ${moment(newExpiresAt).format('YYYY-MM-DD')}`
+    });
+  }
+else if (cname === 'remove') {
+    const server_id = options.find(a => a.name === 'server_id').value;
+
+    const result = await Subscription.findOneAndDelete({ serverId: server_id });
+
+    if (!result) {
+      return inter.reply({ content: `${emojis.x} No subscription found to remove for ${user.tag} on server ${server_id}.` });
+    }
+
+    return inter.reply({ content: `${emojis.off} Subscription on server ${server_id} has been removed.` });
+  }
+    else if (cname === 'getlink') {
       if (!shop.scannerWhitelist.find(g => g === inter.guild?.id)) return inter.reply(emojis.warning+" Server not whitelisted.")
       let options = inter.options._hoistedOptions;
       let username = options.find(a => a.name === 'username');
@@ -698,6 +755,29 @@ let tStocks = 0
 const tunnel = require('tunnel');
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // Disable SSL validation
 
+const checkExpiringSubscriptions = async () => {
+  try {
+    const now = moment();
+    const tomorrowStart = moment().add(1, 'day').startOf('day');
+    const tomorrowEnd = moment().add(1, 'day').endOf('day');
+
+    const expiring = await Subscription.find({
+      expiresAt: { $gte: tomorrowStart.toDate(), $lte: tomorrowEnd.toDate() }
+    });
+
+    if (expiring.length > 0) {
+      const channel = await client.channels.fetch(CHANNEL_ID);
+      for (const sub of expiring) {
+        channel.send(`⚠️ Subscription for <@${sub.userId}> (server ID: \`${sub.serverId}\`) is expiring **tomorrow**.`);
+      }
+    }
+  } catch (err) {
+    console.error('[Subscription Checker] Error:', err);
+  }
+};
+
+// Run every hour
+setInterval(checkExpiringSubscriptions, 1000 * 60 * 60);
 process.on('unhandledRejection', async error => {
   ++errors
   console.log(error);
