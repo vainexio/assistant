@@ -383,7 +383,7 @@ client.on("messageCreate", async (message) => {
   if ((['scan', 'nct', 'ct'].includes(message.content.toLowerCase()))) { //&& shop.scannerWhitelist.find(g => g === message.guild?.id)
   if (message.type === 'REPLY') {
 	let whitelist = await Subscription.findOne({serverId: message.guild?.id})
-      if (!whitelist)) return;
+      if (!whitelist) return;
     let msg = await message.channel.messages.fetch(message.reference.messageId);
     if (!msg) return;
 
