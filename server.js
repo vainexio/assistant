@@ -686,7 +686,7 @@ else if (cname === 'remove') {
   }
     else if (cname === 'getlink') {
 	let whitelist = await Subscription.findOne({serverId: inter.guild.id})
-      if (!whitelist)) return inter.reply(emojis.warning+" Server not whitelisted.")
+      if (!whitelist) return inter.reply(emojis.warning+" Server not whitelisted.")
       let options = inter.options._hoistedOptions;
       let username = options.find(a => a.name === 'username');
       let ctAmount = options.find(a => a.name === 'ct');
