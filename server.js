@@ -652,7 +652,7 @@ client.on('interactionCreate', async inter => {
       );
 
       await inter.reply({
-        content: `${emojis.check} <@${user.id}>'s server **${expiration_days}"** is now whitelisted for ${expiration_days} day(s).`
+        content: `${emojis.check} <@${user.id}>: **${server_id}** is now whitelisted for ${expiration_days} day(s).`
       });
     }
     else if (cname === 'renew') {
