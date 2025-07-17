@@ -380,8 +380,10 @@ client.on("messageCreate", async (message) => {
       })
     }
   }
-  if ((['scan', 'nct', 'ct'].includes(message.content.toLowerCase())) && shop.scannerWhitelist.find(g => g === message.guild?.id)) {
+  if ((['scan', 'nct', 'ct'].includes(message.content.toLowerCase()))) { //&& shop.scannerWhitelist.find(g => g === message.guild?.id)
   if (message.type === 'REPLY') {
+	let whitelist = await Subscription.findOne({serverId: message.guild?.id})
+      if (!whitelist)) return;
     let msg = await message.channel.messages.fetch(message.reference.messageId);
     if (!msg) return;
 
@@ -635,6 +637,7 @@ client.on('interactionCreate', async inter => {
   if (inter.isCommand()) {
     let cname = inter.commandName
     if (cname === 'whitelist') {
+	    if (!await getPerms(inter.member, 4)) return inter.reply({ content: emojis.warning + ' Insufficient Permission' });
     const options = inter.options._hoistedOptions;
   const user = options.find(a => a.name === 'user').user;
   const expiration_days = options.find(a => a.name === 'expiration_days').value;
@@ -652,6 +655,7 @@ client.on('interactionCreate', async inter => {
     content: `${emojis.check} Subscription for ${user.tag} set to expire in ${expiration_days} day(s).` });
   }
 else if (cname === 'renew') {
+	if (!await getPerms(inter.member, 4)) return inter.reply({ content: emojis.warning + ' Insufficient Permission' });
     const daysToAdd = options.find(a => a.name === 'days').value;
     const server_id = options.find(a => a.name === 'server_id').value;
 
@@ -669,6 +673,7 @@ else if (cname === 'renew') {
     });
   }
 else if (cname === 'remove') {
+	if (!await getPerms(inter.member, 4)) return inter.reply({ content: emojis.warning + ' Insufficient Permission' });
     const server_id = options.find(a => a.name === 'server_id').value;
 
     const result = await Subscription.findOneAndDelete({ serverId: server_id });
@@ -680,7 +685,8 @@ else if (cname === 'remove') {
     return inter.reply({ content: `${emojis.off} Subscription on server ${server_id} has been removed.` });
   }
     else if (cname === 'getlink') {
-      if (!shop.scannerWhitelist.find(g => g === inter.guild?.id)) return inter.reply(emojis.warning+" Server not whitelisted.")
+	let whitelist = await Subscription.findOne({serverId: inter.guild.id})
+      if (!whitelist)) return inter.reply(emojis.warning+" Server not whitelisted.")
       let options = inter.options._hoistedOptions;
       let username = options.find(a => a.name === 'username');
       let ctAmount = options.find(a => a.name === 'ct');
