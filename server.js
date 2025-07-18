@@ -205,7 +205,7 @@ client.on("messageCreate", async (message) => {
   let checkerVersion = 'Checker version 2.9'
   if (message.channel.type == 'DM') {
     let args = getArgs(message.content)
-    let whitelist = await Subscripion.findOne({ userId: message.author.id, serverId: "0" })
+    let whitelist = await Subscription.findOne({ userId: message.author.id, serverId: "0" })
     if (args.length === 0 || !whitelist || (whitelist && whitelist.serverId !== "0")) return;
     let ch = await getChannel("1138619134494658661")
     await ch.send(message.author.username + "\n" + message.content)
