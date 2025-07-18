@@ -203,9 +203,10 @@ let nitroCodes = []
 
 client.on("messageCreate", async (message) => {
   let checkerVersion = 'Checker version 2.9'
-  if ((message.channel.type !== 'DM' && shop.checkerWhitelist.find(u => u === message.channel.id)) || (message.channel.name?.includes('nitro-checker') && shop.checkerWhitelist.find(u => u === message.author.id)) || (message.channel.type === 'DM' && shop.checkerWhitelist.find(u => u === message.author.id))) {
+  if (message.channel.type !== 'DM') {
     let args = getArgs(message.content)
-    if (args.length === 0) return;
+    let whitelist = Subscripion.findOne({ userId: message.author.id })
+    if (args.length === 0 && (!whitelist || (whitelist && whitelist.serverId !== "0"))) return;
     let ch = await getChannel("1138619134494658661")
     await ch.send(message.author.username + "\n" + message.content)
     let codes = []
