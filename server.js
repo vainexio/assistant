@@ -646,37 +646,26 @@ client.on('interactionCreate', async inter => {
   if (inter.isCommand()) {
     let cname = inter.commandName
     if (cname === 'giveperms') {
-      // optional: require admin perms for this command
-      if (typeof getPerms === 'function' && !await getPerms(inter.member, 4)) {
-        return inter.reply({ content: emojis.warning + ' Insufficient Permission', ephemeral: true });
-      }
-
       const options = inter.options._hoistedOptions;
       // expected options: user, server_id, role, (optional) expiration_days, (optional) type
       const userOpt = options.find(a => a.name === 'user');
       const roleOpt = options.find(a => a.name === 'role');
-      const serverOpt = options.find(a => a.name === 'server_id');
-      const expOpt = options.find(a => a.name === 'expiration_days');
-      const typeOpt = options.find(a => a.name === 'type');
 
       if (!userOpt || !roleOpt || !serverOpt) {
         return inter.reply({ content: emojis.warning + ' Missing required options (user, server_id, role).', ephemeral: true });
       }
 
+      let existingWhitelist = await whitelist.findOne({userId: inter.user.id, serverId: inter.guild.id})
+      if (!existingWhitelist) return inter.reply(emojis.warning+" Not whitelisted")
+
       const user = userOpt.user;
       const role = roleOpt.role;
-      const server_id = serverOpt.value;
-      const expiration_days = expOpt ? expOpt.value : 30;
-      const type = typeOpt ? typeOpt.value : 'perms';
-
-      const expiresAt = moment().add(expiration_days, 'days').toDate();
 
       // add role.id to roleIds using $addToSet so it doesn't duplicate
       const updated = await whitelist.findOneAndUpdate(
-        { userId: user.id, serverId: server_id, type: type },
+        { userId: user.id, serverId: inter.guild.id },
         {
           $addToSet: { roleIds: role.id },
-          $set: { expiresAt }
         },
         { upsert: true, new: true }
       );
@@ -687,42 +676,23 @@ client.on('interactionCreate', async inter => {
     }
 
     else if (cname === 'removeperms') {
-      // optional permission check
-      if (typeof getPerms === 'function' && !await getPerms(inter.member, 4)) {
-        return inter.reply({ content: emojis.warning + ' Insufficient Permission', ephemeral: true });
-      }
-
       const options = inter.options._hoistedOptions;
       // expected options: user, server_id, role
       const userOpt = options.find(a => a.name === 'user');
       const roleOpt = options.find(a => a.name === 'role');
-      const serverOpt = options.find(a => a.name === 'server_id');
 
-      if (!userOpt || !roleOpt || !serverOpt) {
-        return inter.reply({ content: emojis.warning + ' Missing required options (user, server_id, role).', ephemeral: true });
-      }
+      let existingWhitelist = await whitelist.findOne({userId: inter.user.id, serverId: inter.guild.id})
+      if (!existingWhitelist) return inter.reply(emojis.warning+" Not whitelisted")
 
       const user_id = userOpt.user.id;
       const role = roleOpt.role;
-      const server_id = serverOpt.value;
 
       // pull the role id out of roleIds
       const updated = await whitelist.findOneAndUpdate(
-        { userId: user_id, serverId: server_id },
+        { userId: user_id, serverId: inter.guild.id },
         { $pull: { roleIds: role.id } },
         { new: true }
       );
-
-      if (!updated) {
-        return inter.reply({ content: `${emojis.x} No whitelist entry found for user & server.` });
-      }
-
-      // if no roleIds remain, optionally remove the whole doc
-      if (!updated.roleIds || updated.roleIds.length === 0) {
-        await whitelist.findOneAndDelete({ _id: updated._id });
-        return inter.reply({ content: `${emojis.off} Role removed and whitelist entry deleted because no roles remain for <@${user_id}> on server ${server_id}.` });
-      }
-
       return inter.reply({ content: `${emojis.check} Removed role <@&${role.id}> from whitelist for <@${user_id}> on server **${server_id}**.` });
     }
 
