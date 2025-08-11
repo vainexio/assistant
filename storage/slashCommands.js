@@ -32,24 +32,6 @@ module.exports = {
           "type": 8,
           "required": true
         },
-        {
-          "name": "server_id",
-          "description": "Server ID where the role applies",
-          "type": 3,
-          "required": true
-        },
-        {
-          "name": "expiration_days",
-          "description": "Expiration days (optional, defaults to 30)",
-          "type": 4,
-          "required": false
-        },
-        {
-          "name": "type",
-          "description": "Whitelist type (optional, defaults to 'perms')",
-          "type": 3,
-          "required": false
-        }
       ]
     },
     {
@@ -69,12 +51,6 @@ module.exports = {
           "type": 8,
           "required": true
         },
-        {
-          "name": "server_id",
-          "description": "Server ID where the role applies",
-          "type": 3,
-          "required": true
-        }
       ]
     },
     {
@@ -89,6 +65,22 @@ module.exports = {
           "required": true
         },
         {
+          "name": "type",
+          "description": "Whitelist type",
+          "type": 3,
+          "choices": [
+            {
+              name: 'Gamepass Scanner',
+              value: 'scanner'
+            },
+            {
+              name: 'Nitro Checker',
+              value: 'checker'
+            },
+          ],
+          "required": true
+        }
+        {
           "name": "expiration_days",
           "description": "Expiration days",
           "type": 4,
@@ -100,12 +92,6 @@ module.exports = {
           "type": 3,
           "required": true
         },
-        {
-          "name": "type",
-          "description": "Whitelist type (e.g. scanner, perms)",
-          "type": 3,
-          "required": true
-        }
       ]
     },
     {
