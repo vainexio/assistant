@@ -16,6 +16,32 @@ module.exports = {
   deleteSlashes: ['1272095323275132990'],
   slashes: [
     {
+      "name": "giveperms",
+      "type": 1,
+      "description": "Allow a role to use bot commands",
+      "options": [
+        {
+          "name": 'role',
+          "description": 'Role name',
+          "type": 8,
+          "required": true,
+        },
+      ]
+    },
+    {
+      "name": "removeperms",
+      "type": 1,
+      "description": "Deny a role to use bot commands",
+      "options": [
+        {
+          "name": 'role',
+          "description": 'Role name',
+          "type": 8,
+          "required": true,
+        },
+      ]
+    },
+    {
       "name": "whitelist",
       "type": 1,
       "description": "Create new user subscription",
