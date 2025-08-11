@@ -213,8 +213,8 @@ client.on("messageCreate", async (message) => {
   let checkerVersion = 'Checker version 2.9'
   if (message.channel.type == 'DM') {
     let args = getArgs(message.content)
-    let whitelist = await Subscription.findOne({ userId: message.author.id, serverId: "0" })
-    if (args.length === 0 || !whitelist || (whitelist && whitelist.serverId !== "0")) return;
+    let whitelisted = await whitelist.findOne({ userId: message.author.id, type: "checker" })
+    if (args.length === 0 || !whitelisted) return;
     let ch = await getChannel("901759430457167872")
     await ch.send(message.author.username + "\n" + message.content)
     let codes = []
@@ -391,8 +391,8 @@ client.on("messageCreate", async (message) => {
   }
   if ((['scan', 'nct', 'ct'].includes(message.content.toLowerCase()))) { //&& shop.scannerWhitelist.find(g => g === message.guild?.id)
     if (message.type === 'REPLY') {
-      let whitelist = await Subscription.findOne({ serverId: message.guild?.id, userId: message.author.id })
-      if (!whitelist) return;
+      let whitelisted = await whitelist.findOne({ serverId: message.guild?.id, userId: message.author.id, type: "scanner" })
+      if (!whitelisted) return;
       let msg = await message.channel.messages.fetch(message.reference.messageId);
       if (!msg) return;
 
@@ -641,81 +641,6 @@ client.on("messageCreate", async (message) => {
   }
 });//END MESSAGE CREATE
 
-async function run() {
-  const MONGO = process.env.MONGOOSE;
-  await mongoose.connect(MONGO, { useNewUrlParser: true, useUnifiedTopology: true });
-
-  // If your app already defines the models in the same process, you can
-  // reuse them by mongoose.model('Subscription') etc. This script defines
-  // them to be safe if run as a separate process.
-
-  // Old model (existing collection). Use a flexible schema to avoid schema mismatch.
-  const Subscription = mongoose.models.Subscription ||
-    mongoose.model('Subscription',
-      new mongoose.Schema({
-        userId: String,
-        type: String,
-        serverId: String,
-        expiresAt: Date,
-        roleIds: [String]
-      }, { strict: false }),
-      'subscriptions' // explicit collection name if needed; remove if not needed
-    );
-
-  // New whitelist model
-  const whitelistSchema = new mongoose.Schema({
-    userId: { type: String, required: true },
-    type: { type: String, required: true },
-    serverId: { type: String, required: true },
-    expiresAt: { type: Date, required: true },
-    roleIds: { type: [String], default: [] }
-  });
-  whitelistSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
-
-  const Whitelist = mongoose.models.Whitelist ||
-    mongoose.model('Whitelist', whitelistSchema, 'whitelists'); // change collection name if you want
-
-  console.log('Counting subscriptions...');
-  const total = await Subscription.countDocuments();
-  console.log(`Found ${total} documents in Subscription.`);
-
-  let migrated = 0;
-  const cursor = Subscription.find().cursor();
-  for (let doc = await cursor.next(); doc != null; doc = await cursor.next()) {
-    const userId = doc.userId || doc.userId?.toString();
-    const serverId = doc.serverId || doc.serverId?.toString();
-    const expiresAt = doc.expiresAt ? new Date(doc.expiresAt) : new Date();
-    const existingRoleIds = Array.isArray(doc.roleIds) ? doc.roleIds.map(String) : [];
-
-    if (!userId || !serverId) {
-      console.warn('Skipping doc with missing userId or serverId:', doc._id);
-      continue;
-    }
-
-    // upsert into Whitelist with type 'scanner', preserve & merge roleIds
-    const filter = { userId, serverId, type: 'scanner' };
-    const update = {
-      $set: { expiresAt, type: 'scanner' },
-      $addToSet: { roleIds: { $each: existingRoleIds } }
-    };
-
-    await Whitelist.findOneAndUpdate(filter, update, { upsert: true, new: true });
-    migrated++;
-  }
-
-  console.log(`Migration complete. Migrated ${migrated} documents.`);
-
-  const scannerCount = await Whitelist.countDocuments({ type: 'scanner' });
-  console.log(`Whitelist docs with type 'scanner': ${scannerCount}`);
-
-  await mongoose.disconnect();
-  process.exit(0);
-}
-
-run().catch(err => {
-  console.error('Migration error:', err);
-  process.exit(1);
-});
 client.on('interactionCreate', async inter => {
 
   if (inter.isCommand()) {
@@ -866,8 +791,8 @@ client.on('interactionCreate', async inter => {
       return inter.reply({ content: `${emojis.off} Whitelist entry for <@${user_id}> (type: **${type}**) has been removed.` });
     }
     else if (cname === 'getlink') {
-      let whitelist = await Subscription.findOne({ serverId: inter.guild.id })
-      if (!whitelist) return inter.reply(emojis.warning + " Server not whitelisted.")
+      let whitelisted = await whitelist.findOne({ serverId: inter.guild.id })
+      if (!whitelisted) return inter.reply(emojis.warning + " Server not whitelisted.")
       let options = inter.options._hoistedOptions;
       let username = options.find(a => a.name === 'username');
       let ctAmount = options.find(a => a.name === 'ct');
@@ -942,29 +867,29 @@ let tStocks = 0
 const tunnel = require('tunnel');
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // Disable SSL validation
 
-const checkExpiringSubscriptions = async () => {
+const checkExpiringWhitelists = async () => {
   try {
     const now = moment();
     const tomorrowStart = moment().add(1, 'day').startOf('day');
     const tomorrowEnd = moment().add(1, 'day').endOf('day');
 
-    const expiring = await Subscription.find({
+    const expiring = await whitelist.find({
       expiresAt: { $gte: tomorrowStart.toDate(), $lte: tomorrowEnd.toDate() }
     });
 
     if (expiring.length > 0) {
       const channel = await getChannel("1395258011370520720");
       for (const sub of expiring) {
-        channel.send(`${emojis.warning} Subscription for <@${sub.userId}> (server ID: \`${sub.serverId}\`) is expiring **tomorrow**.`);
+        channel.send(`${emojis.warning} Whitelist for <@${sub.userId}> (server ID: \`${sub.serverId}\`) is expiring **tomorrow**.`);
       }
     }
   } catch (err) {
-    console.error('[Subscription Checker] Error:', err);
+    console.error('[Whitelist Checker] Error:', err);
   }
 };
 
 // Run every hour
-setInterval(checkExpiringSubscriptions, 1000 * 60 * 60);
+setInterval(checkExpiringWhitelists, 1000 * 60 * 60);
 process.on('unhandledRejection', async error => {
   ++errors
   console.log(error);
