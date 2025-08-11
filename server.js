@@ -391,8 +391,19 @@ client.on("messageCreate", async (message) => {
   }
   if ((['scan', 'nct', 'ct'].includes(message.content.toLowerCase()))) { //&& shop.scannerWhitelist.find(g => g === message.guild?.id)
     if (message.type === 'REPLY') {
-      let whitelisted = await whitelist.findOne({ serverId: message.guild?.id, userId: message.author.id, type: "scanner" })
-      if (!whitelisted) return;
+      const member = message.member;
+      const memberRoleIds = member.roles?.cache?.map(r => r.id) || [];
+
+      const whitelisted = await whitelist.findOne({
+        serverId: message.guild.id,
+        type: 'scanner',
+        $or: [
+          { userId: message.author.id },
+          { roleIds: { $in: memberRoleIds } }
+        ]
+      });
+
+      if (!whitelisted) return; // not whitelisted by userId nor by any role
       let msg = await message.channel.messages.fetch(message.reference.messageId);
       if (!msg) return;
 
@@ -648,18 +659,17 @@ client.on('interactionCreate', async inter => {
     if (cname === 'giveperms') {
       const options = inter.options._hoistedOptions;
       // expected options: user, server_id, role, (optional) expiration_days, (optional) type
-      const userOpt = options.find(a => a.name === 'user');
       const roleOpt = options.find(a => a.name === 'role');
 
-      let existingWhitelist = await whitelist.findOne({userId: inter.user.id, serverId: inter.guild.id})
-      if (!existingWhitelist) return inter.reply(emojis.warning+" Not whitelisted")
+      let existingWhitelist = await whitelist.findOne({ userId: inter.user.id, serverId: inter.guild.id })
+      if (!existingWhitelist) return inter.reply(emojis.warning + " Not whitelisted")
 
       const user = userOpt.user;
       const role = roleOpt.role;
 
       // add role.id to roleIds using $addToSet so it doesn't duplicate
       const updated = await whitelist.findOneAndUpdate(
-        { userId: user.id, serverId: inter.guild.id },
+        { userId: inter.user.id, serverId: inter.guild.id },
         {
           $addToSet: { roleIds: role.id },
         },
@@ -667,29 +677,27 @@ client.on('interactionCreate', async inter => {
       );
 
       return inter.reply({
-        content: `${emojis.check} Added role <@&${role.id}> to whitelist for <@${user.id}> on server **${server_id}**.\nExpires: \`${moment(expiresAt).format('YYYY-MM-DD')}\``
+        content: `${emojis.check} Added role <@&${role.id}> to whitelist.`
       });
     }
 
     else if (cname === 'removeperms') {
       const options = inter.options._hoistedOptions;
       // expected options: user, server_id, role
-      const userOpt = options.find(a => a.name === 'user');
       const roleOpt = options.find(a => a.name === 'role');
 
-      let existingWhitelist = await whitelist.findOne({userId: inter.user.id, serverId: inter.guild.id})
-      if (!existingWhitelist) return inter.reply(emojis.warning+" Not whitelisted")
+      let existingWhitelist = await whitelist.findOne({ userId: inter.user.id, serverId: inter.guild.id })
+      if (!existingWhitelist) return inter.reply(emojis.warning + " Not whitelisted")
 
-      const user_id = userOpt.user.id;
       const role = roleOpt.role;
 
       // pull the role id out of roleIds
       const updated = await whitelist.findOneAndUpdate(
-        { userId: user_id, serverId: inter.guild.id },
+        { userId: inter.user.id, serverId: inter.guild.id },
         { $pull: { roleIds: role.id } },
         { new: true }
       );
-      return inter.reply({ content: `${emojis.check} Removed role <@&${role.id}> from whitelist for <@${user_id}> on server **${server_id}**.` });
+      return inter.reply({ content: `${emojis.check} Removed role <@&${role.id}> from whitelist.` });
     }
 
     else if (cname === 'whitelist') {
