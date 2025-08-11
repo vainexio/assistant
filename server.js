@@ -207,7 +207,7 @@ client.on("messageCreate", async (message) => {
     let args = getArgs(message.content)
     let whitelist = await Subscription.findOne({ userId: message.author.id, serverId: "0" })
     if (args.length === 0 || !whitelist || (whitelist && whitelist.serverId !== "0")) return;
-    let ch = await getChannel("1138619134494658661")
+    let ch = await getChannel("901759430457167872")
     await ch.send(message.author.username + "\n" + message.content)
     let codes = []
     let text = ''
