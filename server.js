@@ -46,54 +46,62 @@ async function startApp() {
 startApp();
 let cmd = false
 
-
 let ticketId = 10
 
-let Subscription
-let subscriptionSchema
+let whitelist;
 
 client.on("debug", function (info) {
   console.log(info)
 });
-//When bot is ready
+
+// When bot is ready
 client.on("ready", async () => {
-  //Register
+  // Register (your existing slash registration block)
   if (slashCmd.register) {
-    let discordUrl = "https://discord.com/api/v10/applications/" + client.user.id + "/commands"
+    let discordUrl = "https://discord.com/api/v10/applications/" + client.user.id + "/commands";
     let headers = {
       "Authorization": "Bot " + token,
       "Content-Type": 'application/json'
-    }
+    };
     for (let i in slashes) {
-      let json = slashes[i]
-      await sleep(2000)
+      let json = slashes[i];
+      await sleep(2000);
       let response = await fetch(discordUrl, {
         method: 'post',
         body: JSON.stringify(json),
         headers: headers
       });
-      console.log(json.name + ' - ' + response.status)
+      console.log(json.name + ' - ' + response.status);
     }
     for (let i in slashCmd.deleteSlashes) {
-      let deleteUrl = "https://discord.com/api/v10/applications/" + client.user.id + "/commands/" + slashCmd.deleteSlashes[i]
+      let deleteUrl = "https://discord.com/api/v10/applications/" + client.user.id + "/commands/" + slashCmd.deleteSlashes[i];
       let deleteRes = await fetch(deleteUrl, {
         method: 'delete',
         headers: headers
-      })
-      console.log('Delete - ' + deleteRes.status)
+      });
+      console.log('Delete - ' + deleteRes.status);
     }
   }
+
+  // connect mongoose and create schema + model
   await mongoose.connect(mongooseToken);
-  const subscriptionSchema = new mongoose.Schema({
+
+  const whitelistSchema = new mongoose.Schema({
     userId: { type: String, required: true },
+    type: { type: String, required: true },
     serverId: { type: String, required: true },
     expiresAt: { type: Date, required: true },
+    roleIds: { type: [String], default: [] } // store role ids in an array
   });
 
-  subscriptionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
-  Subscription = mongoose.model('Subscription', subscriptionSchema);
-  console.log('Successfully logged in to discord bot.')
-})
+  // TTL index so documents will expire when expiresAt passes
+  whitelistSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+  // model named 'Whitelist' but variable is `whitelist`
+  whitelist = mongoose.model('Whitelist', whitelistSchema);
+
+  console.log('Successfully logged in to discord bot.');
+});
 module.exports = {
   client: client,
   getPerms,
@@ -633,38 +641,203 @@ client.on("messageCreate", async (message) => {
   }
 });//END MESSAGE CREATE
 
+async function run() {
+  const MONGO = process.env.MONGOOSE;
+  await mongoose.connect(MONGO, { useNewUrlParser: true, useUnifiedTopology: true });
+
+  // If your app already defines the models in the same process, you can
+  // reuse them by mongoose.model('Subscription') etc. This script defines
+  // them to be safe if run as a separate process.
+
+  // Old model (existing collection). Use a flexible schema to avoid schema mismatch.
+  const Subscription = mongoose.models.Subscription ||
+    mongoose.model('Subscription',
+      new mongoose.Schema({
+        userId: String,
+        type: String,
+        serverId: String,
+        expiresAt: Date,
+        roleIds: [String]
+      }, { strict: false }),
+      'subscriptions' // explicit collection name if needed; remove if not needed
+    );
+
+  // New whitelist model
+  const whitelistSchema = new mongoose.Schema({
+    userId: { type: String, required: true },
+    type: { type: String, required: true },
+    serverId: { type: String, required: true },
+    expiresAt: { type: Date, required: true },
+    roleIds: { type: [String], default: [] }
+  });
+  whitelistSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+  const Whitelist = mongoose.models.Whitelist ||
+    mongoose.model('Whitelist', whitelistSchema, 'whitelists'); // change collection name if you want
+
+  console.log('Counting subscriptions...');
+  const total = await Subscription.countDocuments();
+  console.log(`Found ${total} documents in Subscription.`);
+
+  let migrated = 0;
+  const cursor = Subscription.find().cursor();
+  for (let doc = await cursor.next(); doc != null; doc = await cursor.next()) {
+    const userId = doc.userId || doc.userId?.toString();
+    const serverId = doc.serverId || doc.serverId?.toString();
+    const expiresAt = doc.expiresAt ? new Date(doc.expiresAt) : new Date();
+    const existingRoleIds = Array.isArray(doc.roleIds) ? doc.roleIds.map(String) : [];
+
+    if (!userId || !serverId) {
+      console.warn('Skipping doc with missing userId or serverId:', doc._id);
+      continue;
+    }
+
+    // upsert into Whitelist with type 'scanner', preserve & merge roleIds
+    const filter = { userId, serverId, type: 'scanner' };
+    const update = {
+      $set: { expiresAt, type: 'scanner' },
+      $addToSet: { roleIds: { $each: existingRoleIds } }
+    };
+
+    await Whitelist.findOneAndUpdate(filter, update, { upsert: true, new: true });
+    migrated++;
+  }
+
+  console.log(`Migration complete. Migrated ${migrated} documents.`);
+
+  const scannerCount = await Whitelist.countDocuments({ type: 'scanner' });
+  console.log(`Whitelist docs with type 'scanner': ${scannerCount}`);
+
+  await mongoose.disconnect();
+  process.exit(0);
+}
+
+run().catch(err => {
+  console.error('Migration error:', err);
+  process.exit(1);
+});
 client.on('interactionCreate', async inter => {
 
   if (inter.isCommand()) {
     let cname = inter.commandName
-    if (cname === 'whitelist') {
-      if (!await getPerms(inter.member, 4)) return inter.reply({ content: emojis.warning + ' Insufficient Permission' });
+    if (cname === 'giveperms') {
+      // optional: require admin perms for this command
+      if (typeof getPerms === 'function' && !await getPerms(inter.member, 4)) {
+        return inter.reply({ content: emojis.warning + ' Insufficient Permission', ephemeral: true });
+      }
+
       const options = inter.options._hoistedOptions;
-      const user = options.find(a => a.name === 'user').user;
-      const expiration_days = options.find(a => a.name === 'expiration_days').value;
-      const server_id = options.find(a => a.name === 'server_id').value;
+      // expected options: user, server_id, role, (optional) expiration_days, (optional) type
+      const userOpt = options.find(a => a.name === 'user');
+      const roleOpt = options.find(a => a.name === 'role');
+      const serverOpt = options.find(a => a.name === 'server_id');
+      const expOpt = options.find(a => a.name === 'expiration_days');
+      const typeOpt = options.find(a => a.name === 'type');
+
+      if (!userOpt || !roleOpt || !serverOpt) {
+        return inter.reply({ content: emojis.warning + ' Missing required options (user, server_id, role).', ephemeral: true });
+      }
+
+      const user = userOpt.user;
+      const role = roleOpt.role;
+      const server_id = serverOpt.value;
+      const expiration_days = expOpt ? expOpt.value : 30;
+      const type = typeOpt ? typeOpt.value : 'perms';
 
       const expiresAt = moment().add(expiration_days, 'days').toDate();
 
-      await Subscription.findOneAndUpdate(
-        { userId: user.id, serverId: server_id },
+      // add role.id to roleIds using $addToSet so it doesn't duplicate
+      const updated = await whitelist.findOneAndUpdate(
+        { userId: user.id, serverId: server_id, type: type },
+        {
+          $addToSet: { roleIds: role.id },
+          $set: { expiresAt }
+        },
+        { upsert: true, new: true }
+      );
+
+      return inter.reply({
+        content: `${emojis.check} Added role <@&${role.id}> to whitelist for <@${user.id}> on server **${server_id}**.\nExpires: \`${moment(expiresAt).format('YYYY-MM-DD')}\``
+      });
+    }
+
+    else if (cname === 'removeperms') {
+      // optional permission check
+      if (typeof getPerms === 'function' && !await getPerms(inter.member, 4)) {
+        return inter.reply({ content: emojis.warning + ' Insufficient Permission', ephemeral: true });
+      }
+
+      const options = inter.options._hoistedOptions;
+      // expected options: user, server_id, role
+      const userOpt = options.find(a => a.name === 'user');
+      const roleOpt = options.find(a => a.name === 'role');
+      const serverOpt = options.find(a => a.name === 'server_id');
+
+      if (!userOpt || !roleOpt || !serverOpt) {
+        return inter.reply({ content: emojis.warning + ' Missing required options (user, server_id, role).', ephemeral: true });
+      }
+
+      const user_id = userOpt.user.id;
+      const role = roleOpt.role;
+      const server_id = serverOpt.value;
+
+      // pull the role id out of roleIds
+      const updated = await whitelist.findOneAndUpdate(
+        { userId: user_id, serverId: server_id },
+        { $pull: { roleIds: role.id } },
+        { new: true }
+      );
+
+      if (!updated) {
+        return inter.reply({ content: `${emojis.x} No whitelist entry found for user & server.` });
+      }
+
+      // if no roleIds remain, optionally remove the whole doc
+      if (!updated.roleIds || updated.roleIds.length === 0) {
+        await whitelist.findOneAndDelete({ _id: updated._id });
+        return inter.reply({ content: `${emojis.off} Role removed and whitelist entry deleted because no roles remain for <@${user_id}> on server ${server_id}.` });
+      }
+
+      return inter.reply({ content: `${emojis.check} Removed role <@&${role.id}> from whitelist for <@${user_id}> on server **${server_id}**.` });
+    }
+
+    else if (cname === 'whitelist') {
+      if (!await getPerms(inter.member, 4)) return inter.reply({ content: emojis.warning + ' Insufficient Permission' });
+
+      const options = inter.options._hoistedOptions;
+      const user = options.find(a => a.name === 'user').user;
+      const expiration_days = options.find(a => a.name === 'expiration_days').value;
+      const type = options.find(a => a.name === 'type').value;
+      const server_id = options.find(a => a.name === 'server_id').value;
+
+      const existing = await whitelist.findOne({ userId: user.id, serverId: server_id, type: type });
+      if (existing) return inter.reply({ content: emojis.warning + " Existing whitelist on this user & server already exists!" });
+
+      const expiresAt = moment().add(expiration_days, 'days').toDate();
+
+      await whitelist.findOneAndUpdate(
+        { userId: user.id, serverId: server_id, type: type },
         { expiresAt },
         { upsert: true, new: true }
       );
 
-      await inter.reply({
+      return inter.reply({
         content: `${emojis.check} <@${user.id}>: **${server_id}** is now whitelisted for ${expiration_days} day(s).`
       });
     }
+
     else if (cname === 'renew') {
       if (!await getPerms(inter.member, 4)) return inter.reply({ content: emojis.warning + ' Insufficient Permission' });
+
       const options = inter.options._hoistedOptions;
       const daysToAdd = options.find(a => a.name === 'days').value;
+      const user_id = options.find(a => a.name === 'user_id').value;
       const server_id = options.find(a => a.name === 'server_id').value;
+      const type = options.find(a => a.name === 'type').value;
 
-      const sub = await Subscription.findOne({ serverId: server_id });
+      const sub = await whitelist.findOne({ userId: user_id, serverId: server_id, type: type });
       if (!sub) {
-        return inter.reply({ content: `${emojis.on} No active subscription found on server ${server_id}.` });
+        return inter.reply({ content: `${emojis.on} No active whitelist entry found for <@${user_id}> on server ${server_id} with type **${type}**.` });
       }
 
       const newExpiresAt = moment(sub.expiresAt).add(daysToAdd, 'days').toDate();
@@ -672,21 +845,25 @@ client.on('interactionCreate', async inter => {
       await sub.save();
 
       return inter.reply({
-        content: `${emojis.check} Whitelist for <@${sub.userId}> extended by ${daysToAdd} day(s).\nNew expiration: \` ${moment(newExpiresAt).format('YYYY-MM-DD')} \``
+        content: `${emojis.check} Whitelist for <@${sub.userId}> (type: **${type}**) extended by ${daysToAdd} day(s).\nNew expiration: \` ${moment(newExpiresAt).format('YYYY-MM-DD')} \``
       });
     }
+
+    // --- remove command (existing) ---
     else if (cname === 'remove') {
       if (!await getPerms(inter.member, 4)) return inter.reply({ content: emojis.warning + ' Insufficient Permission' });
-      const options = inter.options._hoistedOptions;
-      const server_id = options.find(a => a.name === 'server_id').value;
 
-      const result = await Subscription.findOneAndDelete({ serverId: server_id });
+      const options = inter.options._hoistedOptions;
+      const user_id = options.find(a => a.name === 'user_id').value;
+      const type = options.find(a => a.name === 'type').value;
+
+      const result = await whitelist.findOneAndDelete({ userId: user_id, type: type });
 
       if (!result) {
-        return inter.reply({ content: `${emojis.x} No subscription found to remove on server ${server_id}.` });
+        return inter.reply({ content: `${emojis.x} No whitelist entry found for <@${user_id}> with type **${type}**.` });
       }
 
-      return inter.reply({ content: `${emojis.off} Subscription on server ${server_id} has been removed.` });
+      return inter.reply({ content: `${emojis.off} Whitelist entry for <@${user_id}> (type: **${type}**) has been removed.` });
     }
     else if (cname === 'getlink') {
       let whitelist = await Subscription.findOne({ serverId: inter.guild.id })
