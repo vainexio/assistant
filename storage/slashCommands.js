@@ -79,7 +79,7 @@ module.exports = {
             },
           ],
           "required": true
-        }
+        },
         {
           "name": "expiration_days",
           "description": "Expiration days",
