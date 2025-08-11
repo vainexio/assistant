@@ -651,10 +651,6 @@ client.on('interactionCreate', async inter => {
       const userOpt = options.find(a => a.name === 'user');
       const roleOpt = options.find(a => a.name === 'role');
 
-      if (!userOpt || !roleOpt || !serverOpt) {
-        return inter.reply({ content: emojis.warning + ' Missing required options (user, server_id, role).', ephemeral: true });
-      }
-
       let existingWhitelist = await whitelist.findOne({userId: inter.user.id, serverId: inter.guild.id})
       if (!existingWhitelist) return inter.reply(emojis.warning+" Not whitelisted")
 
