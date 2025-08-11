@@ -21,12 +21,6 @@ module.exports = {
       "description": "Allow a role to use bot commands for a specific user on a server",
       "options": [
         {
-          "name": "user",
-          "description": "Discord user to grant perms for",
-          "type": 6,
-          "required": true
-        },
-        {
           "name": "role",
           "description": "Role to grant permission to",
           "type": 8,
@@ -39,12 +33,6 @@ module.exports = {
       "type": 1,
       "description": "Deny a role from using bot commands for a specific user on a server",
       "options": [
-        {
-          "name": "user",
-          "description": "Discord user to remove perms from",
-          "type": 6,
-          "required": true
-        },
         {
           "name": "role",
           "description": "Role to remove from the whitelist",
