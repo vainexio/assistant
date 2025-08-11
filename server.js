@@ -664,7 +664,6 @@ client.on('interactionCreate', async inter => {
       let existingWhitelist = await whitelist.findOne({ userId: inter.user.id, serverId: inter.guild.id })
       if (!existingWhitelist) return inter.reply(emojis.warning + " Not whitelisted")
 
-      const user = userOpt.user;
       const role = roleOpt.role;
 
       // add role.id to roleIds using $addToSet so it doesn't duplicate
