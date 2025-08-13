@@ -363,9 +363,9 @@ client.on("messageCreate", async (message) => {
     !message.channel.type === 'DM' ? message.delete() : null
   }
 
-  if (message.content.length > 0 && message.content.toLowerCase().startsWith('.invite')) {
+  if (message.content.length > 0 && message.content.toLowerCase().startsWith('!invite')) {
     let row = new MessageActionRow().addComponents(
-      new MessageButton().setURL('https://discord.com/api/oauth2/authorize?client_id=1178955230608625704&permissions=8&scope=bot').setStyle('LINK').setEmoji('📩').setLabel("Invite Checkor"),
+      new MessageButton().setURL('https://discord.com/api/oauth2/authorize?client_id=968378766260846713&permissions=8&scope=bot').setStyle('LINK').setEmoji('📩').setLabel("Invite Bot"),
     );
     message.reply({ components: [row] })
   }
