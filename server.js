@@ -408,8 +408,8 @@ client.on("messageCreate", async (message) => {
       let valcore = await getMember('968378766260846713',message.guild)
       if (!valcore) {
         message.channel.send(emojis.warning+" I am decommissioning this bot and is transferring **gamepass scanner** to <@968378766260846713>.\n\nPlease add the bot using this link: [click me](https://discord.com/api/oauth2/authorize?client_id=968378766260846713&permissions=8&scope=bot)")
-        return;
       }
+      if (client.user.id == "1178955230608625704") return;
       let msg = await message.channel.messages.fetch(message.reference.messageId);
       if (!msg) return;
 
