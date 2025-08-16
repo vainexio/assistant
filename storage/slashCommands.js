@@ -18,7 +18,7 @@ module.exports = {
     {
       "name": "giveperms",
       "type": 1,
-      "description": "Allow a role to use bot commands for a specific user on a server",
+      "description": "ASSISTANT - Allow a role to use bot commands for a specific user on a server",
       "options": [
         {
           "name": "role",
@@ -31,7 +31,7 @@ module.exports = {
     {
       "name": "removeperms",
       "type": 1,
-      "description": "Deny a role from using bot commands for a specific user on a server",
+      "description": "ASSISTANT - Deny a role from using bot commands for a specific user on a server",
       "options": [
         {
           "name": "role",
@@ -44,7 +44,7 @@ module.exports = {
     {
       "name": "whitelist",
       "type": 1,
-      "description": "Create or update a user whitelist/subscription",
+      "description": "ASSISTANT - Create or update a user whitelist/subscription",
       "options": [
         {
           "name": "user",
@@ -85,7 +85,7 @@ module.exports = {
     {
       "name": "renew",
       "type": 1,
-      "description": "Renew a user whitelist/subscription for more days (by user_id, server_id, type)",
+      "description": "ASSISTANT - Renew a user whitelist/subscription for more days (by user_id, server_id, type)",
       "options": [
         {
           "name": "user_id",
@@ -116,7 +116,7 @@ module.exports = {
     {
       "name": "remove",
       "type": 1,
-      "description": "Remove a user whitelist/subscription by user_id and type",
+      "description": "ASSISTANT - Remove a user whitelist/subscription by user_id and type",
       "options": [
         {
           "name": "user_id",
@@ -135,7 +135,7 @@ module.exports = {
     {
       "name": "getlink",
       "type": 1,
-      "description": "Find gamepass link",
+      "description": "ASSISTANT - Find gamepass link",
       "options": [
         {
           "name": 'username',
