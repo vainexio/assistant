@@ -62,6 +62,10 @@ module.exports = {
               value: 'scanner'
             },
             {
+              name: 'Backup Bot',
+              value: 'backup'
+            },
+            {
               name: 'Nitro Checker',
               value: 'checker'
             },
