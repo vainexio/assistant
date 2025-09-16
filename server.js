@@ -868,7 +868,7 @@ const checkExpiringWhitelists = async () => {
 };
 
 // Run every hour
-setInterval(checkExpiringWhitelists, 1000 * 60 * 60 * 24);
+setInterval(checkExpiringWhitelists, 1000 * 60 * 60 * 12);
 process.on('unhandledRejection', async error => {
   ++errors
   console.log(error);
