@@ -4,3 +4,23 @@ expertMode = true
 
 [nix]
 channel = "stable-25_05"
+
+[workflows]
+
+[[workflows.workflow]]
+name = "Run Bot"
+mode = "sequential"
+author = 46456541
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm start"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = 46456541
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Run Bot"
