@@ -909,8 +909,7 @@ client.on("interactionCreate", async (inter) => {
       return inter.reply({
         content: `${emojis.check} Added role <@&${role.id}> to whitelist.`,
       });
-    } 
-    else if (cname === "removeperms") {
+    } else if (cname === "removeperms") {
       const options = inter.options._hoistedOptions;
       // expected options: user, server_id, role
       const roleOpt = options.find((a) => a.name === "role");
@@ -933,8 +932,7 @@ client.on("interactionCreate", async (inter) => {
       return inter.reply({
         content: `${emojis.check} Removed role <@&${role.id}> from whitelist.`,
       });
-    } 
-    else if (cname === "whitelist") {
+    } else if (cname === "whitelist") {
       if (!(await getPerms(inter.member, 4)))
         return inter.reply({
           content: emojis.warning + " Insufficient Permission",
@@ -971,8 +969,7 @@ client.on("interactionCreate", async (inter) => {
       return inter.reply({
         content: `${emojis.check} <@${user.id}>: **${server_id}** is now whitelisted for ${expiration_days} day(s).`,
       });
-    } 
-    else if (cname === "renew") {
+    } else if (cname === "renew") {
       if (!(await getPerms(inter.member, 4)))
         return inter.reply({
           content: emojis.warning + " Insufficient Permission",
@@ -1031,8 +1028,7 @@ client.on("interactionCreate", async (inter) => {
       return inter.reply({
         content: `${emojis.off} Whitelist entry for <@${user_id}> (type: **${type}**) has been removed.`,
       });
-    } 
-    else if (cname === "getlink") {
+    } else if (cname === "getlink") {
       let whitelisted = await whitelist.findOne({ serverId: inter.guild.id });
       if (!whitelisted)
         return inter.reply(emojis.warning + " Server not whitelisted.");
@@ -1176,11 +1172,10 @@ client.on("interactionCreate", async (inter) => {
           );
         }
       }
-    }
-    else if (cname === 'eligible') {
+    } else if (cname === "eligible") {
       let options = inter.options._hoistedOptions;
-      let username = options.find(a => a.name === 'username');
-      let group = options.find(a => a.name === 'group_id');
+      let username = options.find((a) => a.name === "username");
+      let group = options.find((a) => a.name === "group_id");
 
       await inter.deferReply();
 
@@ -1194,7 +1189,10 @@ client.on("interactionCreate", async (inter) => {
 
       // Put your Roblox Open Cloud API key in an env var
       const API_KEY = process.env.ROBLOX_API_KEY;
-      if (!API_KEY) return inter.editReply({ content: "Roblox API key not configured (ROBLOX_API_KEY)." });
+      if (!API_KEY)
+        return inter.editReply({
+          content: "Roblox API key not configured (ROBLOX_API_KEY).",
+        });
 
       // Helper: extract numeric group id from either an id string or many URL formats
       function extractGroupId(input) {
@@ -1206,10 +1204,10 @@ client.on("interactionCreate", async (inter) => {
 
         // Common URL patterns
         const patterns = [
-          /\/groups\/(\d+)/i,            // /groups/12345/...
-          /\/communities\/(\d+)/i,       // /communities/6648268/...
-          /[?&]id=(\d+)/i,               // ?id=12345 or &id=12345
-          /\/places\/(\d+)/i,            // sometimes links include place ids (fallback)
+          /\/groups\/(\d+)/i, // /groups/12345/...
+          /\/communities\/(\d+)/i, // /communities/6648268/...
+          /[?&]id=(\d+)/i, // ?id=12345 or &id=12345
+          /\/places\/(\d+)/i, // sometimes links include place ids (fallback)
         ];
 
         for (const p of patterns) {
@@ -1229,7 +1227,7 @@ client.on("interactionCreate", async (inter) => {
 
       if (!groupId) {
         return inter.editReply({
-          content: `${emojis.warning} Could not extract a group ID from "${groupInput}". Please provide a numeric ID or a group/community URL.`
+          content: `${emojis.warning} Could not extract a group ID from "${groupInput}". Please provide a numeric ID or a group/community URL.`,
         });
       }
 
@@ -1256,16 +1254,18 @@ client.on("interactionCreate", async (inter) => {
             // try to get group name for nicer output (best-effort)
             let groupName = `Group ${groupId}`;
             try {
-              const gRes = await fetch(`https://groups.roblox.com/v1/groups/${groupId}`);
+              const gRes = await fetch(
+                `https://groups.roblox.com/v1/groups/${groupId}`,
+              );
               if (gRes.ok) {
                 const gJson = await gRes.json();
                 groupName = gJson.name || groupName;
               }
-            } catch(_) {}
+            } catch (_) {}
 
             const groupLink = `https://www.roblox.com/groups/${groupId}`;
             return inter.editReply({
-              content: `${emojis.warning} **${displayName}** is not a member of **${groupName}**.\nGroup: ${groupLink}`
+              content: `${emojis.warning} **${displayName}** is not a member of **${groupName}**.\nGroup: ${groupLink}`,
             });
           }
 
@@ -1274,7 +1274,9 @@ client.on("interactionCreate", async (inter) => {
           const createTime = mem.createTime; // e.g. "2025-09-01T12:08:56.342Z"
 
           if (!createTime) {
-            return inter.editReply({ content: `Found membership but missing createTime for ${displayName}.` });
+            return inter.editReply({
+              content: `Found membership but missing createTime for ${displayName}.`,
+            });
           }
 
           // Parse join time and compute eligibility (14 days)
@@ -1282,13 +1284,17 @@ client.on("interactionCreate", async (inter) => {
           const unixSeconds = Math.floor(dateObj.getTime() / 1000);
           const MS_PER_DAY = 24 * 60 * 60 * 1000;
           const nowMs = Date.now();
-          const daysSince = Math.floor((nowMs - dateObj.getTime()) / MS_PER_DAY);
+          const daysSince = Math.floor(
+            (nowMs - dateObj.getTime()) / MS_PER_DAY,
+          );
           const isEligible = daysSince >= 14;
 
           // Get group name (best-effort)
           let groupName = `Group ${groupId}`;
           try {
-            const gRes = await fetch(`https://groups.roblox.com/v1/groups/${groupId}`);
+            const gRes = await fetch(
+              `https://groups.roblox.com/v1/groups/${groupId}`,
+            );
             if (gRes.ok) {
               const gJson = await gRes.json();
               groupName = gJson.name || groupName;
@@ -1302,19 +1308,23 @@ client.on("interactionCreate", async (inter) => {
           if (isEligible) {
             // Per your request: show check + "Eligible: PlayerName (14 days ago)" and Discord relative timestamp
             return inter.editReply({
-              content: `${emojis.check} **Eligible: ${displayName}** — <t:${unixSeconds}:R>\nGroup: [**${groupName}**](${groupLink})`
+              content: `${emojis.check} **Eligible: ${displayName}** — <t:${unixSeconds}:R>\nGroup: [**${groupName}**](${groupLink})`,
             });
           } else {
             const daysRemaining = 14 - daysSince;
             return inter.editReply({
-              content: `${emojis.x} **Not eligible: ${displayName}** — needs **${daysRemaining}** more day${daysRemaining === 1 ? '' : 's'} to be eligible. (<t:${unixSeconds}:R>)\nGroup: [**${groupName}**](${groupLink})`
+              content: `${emojis.x} **Not eligible: ${displayName}** — needs **${daysRemaining}** more day${daysRemaining === 1 ? "" : "s"} to be eligible. (<t:${unixSeconds}:R>)\nGroup: [**${groupName}**](${groupLink})`,
             });
           }
         } else if (res.status === 401 || res.status === 403) {
-          return inter.editReply({ content: "Roblox API authentication failed. Check your x-api-key." });
+          return inter.editReply({
+            content: "Roblox API authentication failed. Check your x-api-key.",
+          });
         } else {
           const errText = await res.text().catch(() => "");
-          return inter.editReply({ content: `Roblox API returned ${res.status}: ${errText}` });
+          return inter.editReply({
+            content: `Roblox API returned ${res.status}: ${errText}`,
+          });
         }
       } catch (err) {
         console.error("Error fetching membership:", err);
@@ -1340,7 +1350,7 @@ const checkExpiringWhitelists = async () => {
     });
 
     if (expiring.length > 0) {
-      const channel = await getChannel("1395258011370520720");
+      const channel = await getChannel("1463796736056361185");
       for (const sub of expiring) {
         channel.send(
           `${emojis.warning} Whitelist for <@${sub.userId}> (server ID: \`${sub.serverId}\`) is expiring **tomorrow**.`,
@@ -1353,7 +1363,7 @@ const checkExpiringWhitelists = async () => {
 };
 
 // Run every hour
-setInterval(checkExpiringWhitelists, 1000 * 60 * 60 * 12);
+setInterval(checkExpiringWhitelists, 1000 * 60 * 60 * 3);
 process.on("unhandledRejection", async (error) => {
   ++errors;
   console.log(error);
