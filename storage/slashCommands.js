@@ -16,6 +16,16 @@ module.exports = {
   deleteSlashes: ['1272095323275132990'],
   slashes: [
     {
+      name: 'eligible',
+      type: 1,
+      description: 'Check group payout eligibility',
+      options: [
+        { name: 'username', type: 3, description: 'Roblox username', required: true },
+        { name: 'group_id', type: 3, description: 'Roblox Group ID', required: true },
+      ]
+    },
+    /*
+    {
       "name": "giveperms",
       "type": 1,
       "description": "ASSISTANT - Allow a role to use bot commands for a specific user on a server",
@@ -160,6 +170,6 @@ module.exports = {
           "required": false,
         },
       ]
-    },
+    },*/
   ],
 };

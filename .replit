@@ -24,3 +24,7 @@ author = 46456541
 [[workflows.workflow.tasks]]
 task = "workflow.run"
 args = "Run Bot"
+
+[[ports]]
+localPort = 3000
+externalPort = 80
