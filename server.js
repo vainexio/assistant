@@ -1176,6 +1176,9 @@ client.on("interactionCreate", async (inter) => {
       let options = inter.options._hoistedOptions;
       let username = options.find((a) => a.name === "username");
       let group = options.find((a) => a.name === "group_id");
+      let whitelisted = await whitelist.findOne({ serverId: inter.guild.id });
+      if (!whitelisted)
+        return inter.reply(emojis.warning + " Server not whitelisted.");
 
       await inter.deferReply();
 
