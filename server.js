@@ -1356,7 +1356,7 @@ const checkExpiringWhitelists = async () => {
       const channel = await getChannel("1463796736056361185");
       for (const sub of expiring) {
         channel.send(
-          `${emojis.warning} Whitelist for <@${sub.userId}> (server ID: \`${sub.serverId}\`) is expiring **tomorrow**.`,
+          `${emojis.warning} **${sub.type.toUpperCase()}** Whitelist for <@${sub.userId}> (server ID: \`${sub.serverId}\`) is expiring **tomorrow**.`,
         );
       }
     }
