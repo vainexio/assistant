@@ -1300,7 +1300,7 @@ client.on("interactionCreate", async (inter) => {
 
       let registeredGroup = whitelisted.groups.find(g => g === groupId)
       if (!registeredGroup) return inter.editReply({
-        content: `${emojis.warning} Roblox API authentication failed. Group }${groupId}} is not configured.`,
+        content: `${emojis.warning} Roblox API authentication failed. Group [${groupId}] is not configured.`,
       })
 
       // Build membership URL safely (encode filter)
