@@ -932,6 +932,38 @@ client.on("interactionCreate", async (inter) => {
       return inter.reply({
         content: `${emojis.check} Removed role <@&${role.id}> from whitelist.`,
       });
+    } else if (cname === "register_group") {
+      const options = inter.options._hoistedOptions;
+      const groupInput = options.find((a) => a.name === "group").value;
+      const serverId = options.find((a) => a.name === "server_id").value;
+
+      let groupId = groupInput;
+      if (groupInput.includes("roblox.com")) {
+        const match = groupInput.match(/groups\/(\d+)/);
+        if (match) groupId = match[1];
+      }
+
+      // Find an existing whitelist with serverId == provided server id and type == 'scanner'
+      const existing = await whitelist.findOne({
+        serverId: serverId,
+        type: "scanner",
+      });
+
+      if (!existing) {
+        return inter.reply({
+          content: `${emojis.warning} No scanner whitelist found for server ID: ${serverId}`,
+        });
+      }
+
+      // push it on the whitelist group array
+      await whitelist.updateOne(
+        { _id: existing._id },
+        { $addToSet: { groups: groupId } }
+      );
+
+      return inter.reply({
+        content: `${emojis.check} Registered group **${groupId}** to scanner whitelist for server **${serverId}**.`,
+      });
     } else if (cname === "whitelist") {
       if (!(await getPerms(inter.member, 4)))
         return inter.reply({
