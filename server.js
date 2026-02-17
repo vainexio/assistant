@@ -981,6 +981,10 @@ client.on("interactionCreate", async (inter) => {
         });
       }
 
+      if (!existing.groups.includes(groupId)) return inter.reply({
+        content: `${emojis.warning} Group **${groupId}** is not configured to server **${serverId}**.`,
+      })
+
       await whitelist.updateOne(
         { _id: existing._id },
         { $pull: { groups: groupId } }
