@@ -63,7 +63,6 @@ startApp();
 let cmd = false;
 
 let ticketId = 10;
-
 let whitelist;
 
 client.on("debug", function (info) {
@@ -115,6 +114,7 @@ client.on("ready", async () => {
     serverId: { type: String, required: true },
     expiresAt: { type: Date, required: true },
     roleIds: { type: [String], default: [] }, // store role ids in an array
+    groups: { type: [String], default: [] },
   });
 
   // TTL index so documents will expire when expiresAt passes
