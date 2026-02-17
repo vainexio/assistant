@@ -932,7 +932,8 @@ client.on("interactionCreate", async (inter) => {
       return inter.reply({
         content: `${emojis.check} Removed role <@&${role.id}> from whitelist.`,
       });
-    } else if (cname === "register_group") {
+    } 
+    else if (cname === "register_group") {
       const options = inter.options._hoistedOptions;
       const groupInput = options.find((a) => a.name === "group").value;
       const serverId = options.find((a) => a.name === "server_id").value;
@@ -964,7 +965,32 @@ client.on("interactionCreate", async (inter) => {
       return inter.reply({
         content: `${emojis.check} Registered group **${groupId}** to scanner whitelist for server **${serverId}**.`,
       });
-    } else if (cname === "whitelist") {
+    } else if (cname === "unregister_group") {
+      const options = inter.options._hoistedOptions;
+      const groupId = options.find((a) => a.name === "group_id").value;
+      const serverId = options.find((a) => a.name === "server_id").value;
+
+      const existing = await whitelist.findOne({
+        serverId: serverId,
+        type: "scanner",
+      });
+
+      if (!existing) {
+        return inter.reply({
+          content: `${emojis.warning} No scanner whitelist found for server ID: ${serverId}`,
+        });
+      }
+
+      await whitelist.updateOne(
+        { _id: existing._id },
+        { $pull: { groups: groupId } }
+      );
+
+      return inter.reply({
+        content: `${emojis.check} Unregistered group **${groupId}** from scanner whitelist for server **${serverId}**.`,
+      });
+    } 
+    else if (cname === "whitelist") {
       if (!(await getPerms(inter.member, 4)))
         return inter.reply({
           content: emojis.warning + " Insufficient Permission",
@@ -1001,7 +1027,8 @@ client.on("interactionCreate", async (inter) => {
       return inter.reply({
         content: `${emojis.check} <@${user.id}>: **${server_id}** is now whitelisted for ${expiration_days} day(s).`,
       });
-    } else if (cname === "renew") {
+    } 
+    else if (cname === "renew") {
       if (!(await getPerms(inter.member, 4)))
         return inter.reply({
           content: emojis.warning + " Insufficient Permission",
@@ -1266,6 +1293,11 @@ client.on("interactionCreate", async (inter) => {
           content: `${emojis.warning} Could not extract a group ID from "${groupInput}". Please provide a numeric ID or a group/community URL.`,
         });
       }
+
+      let registeredGroup = whitelisted.groups.find(g => g === groupId)
+      if (!registeredGroup) return inter.editReply({
+        content: `${emojis.warning} Group **${groupId}** is not configured.`,
+      })
 
       // Build membership URL safely (encode filter)
       const filter = encodeURIComponent(`user=='users/${user.id}'`);

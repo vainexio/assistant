@@ -43,6 +43,25 @@ module.exports = {
         }
       ]
     },
+    {
+      name: 'unregister_group',
+      type: 1,
+      description: 'Unregister a Roblox group from a scanner whitelist',
+      options: [
+        {
+          name: 'group_id',
+          description: 'Roblox Group ID to remove',
+          type: 3,
+          required: true
+        },
+        {
+          name: 'server_id',
+          description: 'Discord Server ID',
+          type: 3,
+          required: true
+        }
+      ]
+    },
     /*
     {
       "name": "giveperms",
