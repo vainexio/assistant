@@ -24,6 +24,25 @@ module.exports = {
         { name: 'group_id', type: 3, description: 'Roblox Group ID', required: true },
       ]
     },
+    {
+      name: 'register_group',
+      type: 1,
+      description: 'Register a Roblox group for a scanner whitelist',
+      options: [
+        {
+          name: 'group',
+          description: 'Roblox Group ID or Link',
+          type: 3,
+          required: true
+        },
+        {
+          name: 'server_id',
+          description: 'Discord Server ID',
+          type: 3,
+          required: true
+        }
+      ]
+    },
     /*
     {
       "name": "giveperms",
