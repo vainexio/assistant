@@ -670,9 +670,9 @@ client.on("messageCreate", async (message) => {
                   headers: authHeaders(),
                 });
             const data = await checkGame.json();
+            console.log(data);
             if (Array.isArray(data) && data.length === 0) {
               // nothing found
-              return null; // or throw, or return a fallback object
               isGameHidden = true;
             } else if (data.length > 0) {
               if (data[0].reasonProhibited == "ContextualPlayabilityUnrated") {
