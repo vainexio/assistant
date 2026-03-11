@@ -718,7 +718,7 @@ client.on("messageCreate", async (message) => {
             }
             
             if (hiddenFlag) {
-              content += regionalFlag;
+              content += hiddenFlag;
             }
             content += `\n`;
           } else if (commandType === "nct") {
