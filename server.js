@@ -674,6 +674,10 @@ client.on("messageCreate", async (message) => {
               // nothing found
               return null; // or throw, or return a fallback object
               isGameHidden = true;
+            } else if (data.length > 0) {
+              if (data[0].reasonProhibited == "ContextualPlayabilityUnrated") {
+                isGameHidden = true;
+              }
             }
             
           } else if (isCatalog && itemId) {
