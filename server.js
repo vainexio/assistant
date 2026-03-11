@@ -664,7 +664,7 @@ client.on("messageCreate", async (message) => {
               Array.isArray(json.priceInformation.enabledFeatures) &&
               json.priceInformation.enabledFeatures.includes("RegionalPricing");
             ctValue = !isNaN(rawAuth) ? Math.floor(rawAuth * 0.7) : rawAuth;
-            let checkGame = await fetch('https://games.roblox.com/v1/games/multiget-place-details?placeIds='+json.placeId',
+            let checkGame = await fetch('https://games.roblox.com/v1/games/multiget-place-details?placeIds='+json.placeId,
               {
                   method: "GET",
                   headers: authHeaders(),
