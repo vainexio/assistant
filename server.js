@@ -629,6 +629,7 @@ client.on("messageCreate", async (message) => {
           let rawAuth = null;
           let ctValue = null;
           let isRegional = false;
+          let isGameHidden = false;
 
           // Extract numeric ID from URL
           const idMatch = link.match(/(game-pass|gamepasses|catalog)\/(\d+)/i);
@@ -663,6 +664,18 @@ client.on("messageCreate", async (message) => {
               Array.isArray(json.priceInformation.enabledFeatures) &&
               json.priceInformation.enabledFeatures.includes("RegionalPricing");
             ctValue = !isNaN(rawAuth) ? Math.floor(rawAuth * 0.7) : rawAuth;
+            let checkGame = await fetch('https://games.roblox.com/v1/games/multiget-place-details?placeIds='+json.placeId',
+              {
+                  method: "GET",
+                  headers: authHeaders(),
+                });
+            const data = await checkGame.json();
+            if (Array.isArray(data) && data.length === 0) {
+              // nothing found
+              return null; // or throw, or return a fallback object
+              isGameHidden = true;
+            }
+            
           } else if (isCatalog && itemId) {
             // Fallback to catalog endpoint for shirt/pants
             let res = await fetch(
@@ -687,6 +700,9 @@ client.on("messageCreate", async (message) => {
             const regionalFlag = isRegional
               ? `-# ${emojis.warning} **Regional pricing detected**\n`
               : "";
+            const hiddenFlag = isGameHidden
+            ? `-# ${emojis.warning} **The gamepass is not accessible.**\n`
+              : ""
 
             content += `${count}. ${link}\n`;
             if (regionalFlag) {
@@ -695,6 +711,10 @@ client.on("messageCreate", async (message) => {
             if (!isNaN(rawAuth) && !isRegional) {
               content += `Price: ${priceAuth}\n`;
               content += `You will receive: **${ctValue}** ${emojis.robux}\n`;
+            }
+            
+            if (hiddenFlag) {
+              content += regionalFlag;
             }
             content += `\n`;
           } else if (commandType === "nct") {
