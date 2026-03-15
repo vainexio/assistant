@@ -630,6 +630,7 @@ client.on("messageCreate", async (message) => {
           let ctValue = null;
           let isRegional = false;
           let isGameHidden = false;
+          let gameHiddenReason = "";
 
           // Extract numeric ID from URL
           const idMatch = link.match(/(game-pass|gamepasses|catalog)\/(\d+)/i);
@@ -675,8 +676,9 @@ client.on("messageCreate", async (message) => {
               // nothing found
               isGameHidden = true;
             } else if (data.length > 0) {
-              if (data[0].reasonProhibited == "ContextualPlayabilityUnrated") {
+              if (data[0].reasonProhibited != "None") {
                 isGameHidden = true;
+                gameHiddenReason = data[0].reasonProhibited;
               }
             }
             
@@ -705,7 +707,7 @@ client.on("messageCreate", async (message) => {
               ? `-# ${emojis.warning} **Regional pricing detected**\n`
               : "";
             const hiddenFlag = isGameHidden
-            ? `-# ${emojis.warning} **The gamepass is not accessible.**\n`
+            ? `-# ${emojis.warning} **The gamepass is not accessible. (${gameHiddenReason})**\n`
               : ""
 
             content += `${count}. ${link}\n`;
