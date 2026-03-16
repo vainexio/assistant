@@ -631,7 +631,7 @@ client.on("messageCreate", async (message) => {
           let isRegional = false;
           let isGameHidden = false;
           let gameHiddenReason = "";
-          let notFs = false;
+          let isForSale = false;
 
           // Extract numeric ID from URL
           const idMatch = link.match(/(game-pass|gamepasses|catalog)\/(\d+)/i);
@@ -661,7 +661,7 @@ client.on("messageCreate", async (message) => {
             }
             const json = await res.json();
             priceAuth = json.priceInformation.defaultPriceInRobux;
-            notFs = json.isForSale;
+            isForSale = json.isForSale;
             rawAuth = Number(priceAuth);
             isRegional =
               Array.isArray(json.priceInformation.enabledFeatures) &&
@@ -711,7 +711,7 @@ client.on("messageCreate", async (message) => {
             const hiddenFlag = isGameHidden
             ? `-# ${emojis.warning} **The gamepass is not accessible. (${gameHiddenReason})**\n`
               : ""
-            const notFsFlag = notFs ? `-# ${emojis.warning} **The gamepass is not on sale.**\n` : ""
+            const notFsFlag = !isForSale ? `-# ${emojis.warning} **The gamepass is not on sale.**\n` : ""
 
             content += `${count}. ${link}\n`;
             if (regionalFlag) {
