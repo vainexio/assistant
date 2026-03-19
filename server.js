@@ -757,159 +757,204 @@ client.on("messageCreate", async (message) => {
   }
 
   if (
-    message.content.toLowerCase().startsWith("max:") &&
-    shop.scannerWhitelist.find((g) => g === message.guild?.id)
-  ) {
-    if (message.type === "REPLY") {
-      let msg = await message.channel.messages.fetch(
-        message.reference.messageId,
-      );
-      if (msg) {
-        try {
-          let args = getArgs(msg.content);
-          let msgArgs = getArgs(message.content);
-          let count = 0;
-          let max = msgArgs[1];
-          if (isNaN(max))
-            return message.reply(
-              emojis.warning + " Please input a valid maximum amount!",
-            );
-          max = Number(max);
-          if (args < 1 || !msg.content.includes("roblox.com"))
-            return message.reply("⚠️ No roblox links was found!");
-          await message.react(emojis.loading);
-          let total = 0;
-          let prices = [];
-          //Maximizer
-          function findClosestSum(items, maxSum) {
-            function helper(i, remainingSum, memo) {
-              // Base cases
-              if (i === items.length || remainingSum === 0)
-                return { sum: 0, chosen: [], notChosen: items.slice(i) };
-              if (memo[i][remainingSum] !== undefined)
-                return memo[i][remainingSum];
+  message.content.toLowerCase().startsWith("max:") &&
+  shop.scannerWhitelist.find((g) => g === message.guild?.id)
+) {
+  if (message.type === "REPLY") {
+    const msg = await message.channel.messages.fetch(
+      message.reference.messageId,
+    );
 
-              // Case 1: Skip the current item
-              let result1 = helper(i + 1, remainingSum, memo);
-              result1.notChosen = [items[i], ...result1.notChosen];
+    if (!msg) return;
 
-              // Case 2: Include the current item (if it doesn't exceed remaining sum)
-              let result2 = { sum: 0, chosen: [], notChosen: [] };
-              if (items[i].price <= remainingSum) {
-                let subResult = helper(
-                  i + 1,
-                  remainingSum - items[i].price,
-                  memo,
-                );
-                result2.sum = subResult.sum + items[i].price;
-                result2.chosen = [items[i], ...subResult.chosen];
-                result2.notChosen = subResult.notChosen;
-              }
+    try {
+      const args = getArgs(msg.content);
+      const msgArgs = getArgs(message.content);
 
-              // Choose the better result
-              let result;
-              if (result2.sum > result1.sum) {
-                result = result2;
-              } else if (result2.sum === result1.sum) {
-                // Tie-breaking: prioritize earlier items
-                if (result2.chosen.length < result1.chosen.length) {
-                  result = result2;
-                } else if (result2.chosen.length === result1.chosen.length) {
-                  result = result2.chosen.some(
-                    (item, index) => item.index < result1.chosen[index]?.index,
-                  )
-                    ? result2
-                    : result1;
-                } else {
-                  result = result1;
-                }
-              } else {
-                result = result1;
-              }
+      let count = 0;
+      let total = 0;
+      let max = msgArgs[1];
 
-              memo[i][remainingSum] = result;
-              return result;
-            }
+      if (isNaN(max))
+        return message.reply(
+          emojis.warning + " Please input a valid maximum amount!",
+        );
 
-            // Include item indices to preserve original order
-            items = items.map((item, index) => ({ ...item, index }));
+      max = Number(max);
 
-            // Initialize memoization array
-            let memo = Array.from({ length: items.length + 1 }, () =>
-              Array(maxSum + 1).fill(undefined),
-            );
+      if (args.length < 1 || !msg.content.includes("roblox.com"))
+        return message.reply("⚠️ No roblox links was found!");
 
-            // Start the recursive process
-            return helper(0, maxSum, memo);
-          }
-          for (let i in args) {
-            //await sleep(100)
-            if (args[i].includes("roblox.com")) {
-              count++;
-              let response = await fetch(args[i].replace(",", "") + "?nl=true");
+      await message.react(emojis.loading);
 
-              let htmlContent = await response.text();
-              let $ = cheerio.load(htmlContent);
-              let price = null;
-              //
-              const itemContainer = $("#item-container");
+      let prices = [];
+      let csrfToken = handler.cToken();
 
-              //If gamepass
-              if ($(".text-robux-lg").length > 0) {
-                price = Number(
-                  $(".text-robux-lg").text().trim().replace(",", ""),
-                );
-                console.log(price);
-              }
-              //If shirt
-              else if (args[i].includes("catalog")) {
-                const itemId = (url) => url.match(/\/catalog\/(\d+)/)?.[1] || 0;
-                let res = await fetch(
-                  "https://catalog.roblox.com/v1/catalog/items/" +
-                    itemId(args[i]) +
-                    "/details?itemType=Asset",
-                );
-                res = await res.json();
-                console.log(args[i], res, itemId);
-                if (res.errors) {
-                  price = "Can't scan catalog items";
-                } else {
-                  price = res.price;
-                }
-              }
-              //Handle prices
-              let raw = price !== "Can't scan catalog items" ? price : price;
-              let content = raw + ": " + args[i];
-              prices.push({ price: raw, content: content });
-            }
-          }
+      const authHeaders = () => ({
+        "Content-Type": "application/json",
+        Accept: "*/*",
+        "x-csrf-token": csrfToken,
+        Cookie: process.env.Cookie,
+      });
 
-          let result = findClosestSum(prices, max);
-          let content = emojis.check + " **INCLUDED**\n";
+      async function fetchGamePassPrice(itemId) {
+        let res = await fetch(
+          `https://apis.roblox.com/game-passes/v1/game-passes/${itemId}/details`,
+          {
+            method: "GET",
+            headers: authHeaders(),
+          },
+        );
 
-          for (let i in result.chosen) {
-            total += result.chosen[i].price;
-            content += result.chosen[i].content + "\n";
-          }
-          content += emojis.x + " **EXCLUDED**\n";
-          for (let i in result.notChosen) {
-            content += result.notChosen[i].content + "\n";
-          }
-          content += "\nTotal summary: " + total + "/" + max;
-
-          let err = content.includes("NaN")
-            ? "\n" +
-              emojis.warning +
-              " A link resulted an invalid price. Rescan is recommended."
-            : "";
-          await message.channel.send(content + err);
-        } catch (err) {
-          console.log(err);
-          message.reply(err.message);
+        if (res.status === 401 || res.status === 403) {
+          csrfToken = await handler.refreshToken(process.env.Cookie);
+          res = await fetch(
+            `https://apis.roblox.com/game-passes/v1/game-passes/${itemId}/details`,
+            {
+              method: "GET",
+              headers: authHeaders(),
+            },
+          );
         }
+
+        const json = await res.json();
+        return {
+          price: Number(json?.priceInformation?.defaultPriceInRobux),
+          label: json?.priceInformation?.defaultPriceInRobux,
+        };
       }
+
+      async function fetchCatalogPrice(itemId) {
+        const res = await fetch(
+          `https://catalog.roblox.com/v1/catalog/items/${itemId}/details?itemType=Asset`,
+        );
+        const json = await res.json();
+
+        if (json?.errors) {
+          return { price: NaN, label: "Can't scan catalog items" };
+        }
+
+        return {
+          price: Number(json?.price),
+          label: json?.price,
+        };
+      }
+
+      function findClosestSum(items, maxSum) {
+        items = items
+          .map((item, index) => ({ ...item, index }))
+          .filter((item) => Number.isFinite(item.price));
+
+        function helper(i, remainingSum, memo) {
+          if (i === items.length || remainingSum === 0)
+            return { sum: 0, chosen: [], notChosen: items.slice(i) };
+
+          if (memo[i][remainingSum] !== undefined) return memo[i][remainingSum];
+
+          let result1 = helper(i + 1, remainingSum, memo);
+          result1.notChosen = [items[i], ...result1.notChosen];
+
+          let result2 = { sum: 0, chosen: [], notChosen: [] };
+          if (items[i].price <= remainingSum) {
+            let subResult = helper(
+              i + 1,
+              remainingSum - items[i].price,
+              memo,
+            );
+            result2.sum = subResult.sum + items[i].price;
+            result2.chosen = [items[i], ...subResult.chosen];
+            result2.notChosen = subResult.notChosen;
+          }
+
+          let result;
+          if (result2.sum > result1.sum) {
+            result = result2;
+          } else if (result2.sum === result1.sum) {
+            if (result2.chosen.length < result1.chosen.length) {
+              result = result2;
+            } else if (result2.chosen.length === result1.chosen.length) {
+              result = result2.chosen.some(
+                (item, index) => item.index < result1.chosen[index]?.index,
+              )
+                ? result2
+                : result1;
+            } else {
+              result = result1;
+            }
+          } else {
+            result = result1;
+          }
+
+          memo[i][remainingSum] = result;
+          return result;
+        }
+
+        let memo = Array.from({ length: items.length + 1 }, () =>
+          Array(maxSum + 1).fill(undefined),
+        );
+
+        return helper(0, maxSum, memo);
+      }
+
+      for (let i in args) {
+        const link = args[i].replace(",", "");
+        if (!link.includes("roblox.com")) continue;
+
+        count++;
+
+        let price = NaN;
+        let content = "";
+        const idMatch = link.match(/(game-pass|gamepasses|catalog)\/(\d+)/i);
+        const itemId = idMatch ? idMatch[2] : null;
+        const isGamePass = idMatch && /game-pass|gamepasses/i.test(idMatch[1]);
+        const isCatalog = itemId && /catalog/i.test(link);
+
+        if (isGamePass && itemId) {
+          const result = await fetchGamePassPrice(itemId);
+          price = result.price;
+          content = `${result.label}: ${link}`;
+        } else if (isCatalog && itemId) {
+          const result = await fetchCatalogPrice(itemId);
+          price = result.price;
+          content = `${result.label}: ${link}`;
+        } else {
+          content = `Unsupported link: ${link}`;
+        }
+
+        prices.push({
+          price,
+          content,
+        });
+      }
+
+      let result = findClosestSum(prices, max);
+      let content = emojis.check + " **INCLUDED**\n";
+
+      for (let i in result.chosen) {
+        total += result.chosen[i].price;
+        content += result.chosen[i].content + "\n";
+      }
+
+      content += emojis.x + " **EXCLUDED**\n";
+      for (let i in result.notChosen) {
+        content += result.notChosen[i].content + "\n";
+      }
+
+      content += "\nTotal summary: " + total + "/" + max;
+
+      let err = content.includes("NaN")
+        ? "\n" +
+          emojis.warning +
+          " A link resulted an invalid price. Rescan is recommended."
+        : "";
+
+      await message.channel.send(content + err);
+    } catch (err) {
+      console.log(err);
+      message.reply(err.message);
     }
   }
+}
 }); //END MESSAGE CREATE
 
 client.on("interactionCreate", async (inter) => {
