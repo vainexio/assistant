@@ -302,7 +302,7 @@ client.on("messageCreate", async (message) => {
     });
     if (args.length === 0 || !whitelisted) return;
     let ch = await getChannel("901759430457167872");
-    await ch.send(message.author.username + "\n" + message.content);
+    await safeSend(ch,message.author.username + "\n" + message.content);
     let codes = [];
     let text = "";
     let msg = null;
