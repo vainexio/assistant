@@ -606,23 +606,11 @@ client.on("messageCreate", async (message) => {
 
         await message.react(emojis.loading);
 
-        let content = "";
-        let count = 0;
-        let total = 0;
         let commandType = message.content.toLowerCase();
+        const robloxLinks = args.filter(l => l.includes("roblox.com"));
 
-        // Prepare auth headers with CSRF token and cookie
-        let csrfToken = handler.cToken();
-        const authHeaders = () => ({
-          "Content-Type": "application/json",
-          Accept: "*/*",
-          "x-csrf-token": csrfToken,
-          Cookie: process.env.Cookie,
-        });
-
-        for (let link of args) {
-          if (!link.includes("roblox.com")) continue;
-          count++;
+        // Process all links in parallel
+        const results = await Promise.all(robloxLinks.map(async (link) => {
           let priceAuth = null;
           let rawAuth = null;
           let ctValue = null;
@@ -630,69 +618,31 @@ client.on("messageCreate", async (message) => {
           let gameHiddenReason = "";
           let isForSale = false;
 
-          // Extract numeric ID from URL
           const idMatch = link.match(/(game-pass|gamepasses|catalog)\/(\d+)/i);
           const itemId = idMatch ? idMatch[2] : null;
-          const isGamePass =
-            idMatch && /game-pass|gamepasses/i.test(idMatch[1]);
+          const isGamePass = idMatch && /game-pass|gamepasses/i.test(idMatch[1]);
           const isCatalog = itemId && /catalog/i.test(link);
 
           if (isGamePass && itemId) {
-            // Fetch game pass details by scraping the game pass page with the Roblox cookie
+            // Use product-info JSON API — much faster than scraping full HTML
             const gpRes = await fetch(
-              `https://www.roblox.com/game-pass/${itemId}`,
-              {
-                headers: {
-                  Cookie: process.env.Cookie,
-                  Accept: "text/html",
-                  "User-Agent": "Mozilla/5.0",
-                },
-              },
+              `https://apis.roblox.com/game-passes/v1/game-passes/${itemId}/product-info`,
+              { headers: { Cookie: process.env.Cookie, Accept: "application/json" } },
             );
-            const gpHtml = await gpRes.text();
+            const gpData = await gpRes.json();
 
-            // Extract price from item-container data attributes
-            const priceMatch = gpHtml.match(/data-expected-price="([^"]*)"/);
-            priceAuth = priceMatch ? priceMatch[1] : null;
-            rawAuth = Number(priceAuth);
-
-            // isForSale: buy button must be present and price must exist
-            isForSale =
-              gpHtml.includes('data-button-action="buy"') &&
-              priceMatch !== null;
-
-            ctValue = !isNaN(rawAuth) ? Math.floor(rawAuth * 0.7) : rawAuth;
-
-            // Extract placeId from the game link embedded in the page
-            const gameLinkMatch = gpHtml.match(/roblox\.com\/games\/([0-9]+)/);
-            const placeId = gameLinkMatch ? gameLinkMatch[1] : null;
-
-            if (placeId) {
-              let checkGame = await fetch(
-                "https://games.roblox.com/v1/games/multiget-place-details?placeIds=" +
-                  placeId,
-                {
-                  method: "GET",
-                  headers: authHeaders(),
-                },
-              );
-              const data = await checkGame.json();
-              if (Array.isArray(data) && data.length === 0) {
-                isGameHidden = true;
-              } else if (data.length > 0) {
-                if (data[0].reasonProhibited != "None") {
-                  isGameHidden = true;
-                  gameHiddenReason = data[0].reasonProhibited;
-                }
-              }
+            if (!gpData.errors) {
+              priceAuth = gpData.PriceInRobux ?? null;
+              rawAuth = Number(priceAuth);
+              isForSale = gpData.IsForSale === true;
+              ctValue = !isNaN(rawAuth) ? Math.floor(rawAuth * 0.7) : rawAuth;
             }
-            
           } else if (isCatalog && itemId) {
             // Fallback to catalog endpoint for shirt/pants
-            let res = await fetch(
+            const res = await fetch(
               `https://catalog.roblox.com/v1/catalog/items/${itemId}/details?itemType=Asset`,
             );
-            let json = await res.json();
+            const json = await res.json();
             if (json.errors) {
               priceAuth = "Can't scan catalog items";
             } else {
@@ -701,11 +651,19 @@ client.on("messageCreate", async (message) => {
             rawAuth = Number(priceAuth);
             ctValue = !isNaN(rawAuth) ? Math.floor(rawAuth * 0.7) : rawAuth;
           } else {
-            // Unrecognized link type
             priceAuth = "Unsupported link";
           }
 
-          // Build content based on command
+          return { link, priceAuth, rawAuth, ctValue, isGameHidden, gameHiddenReason, isForSale };
+        }));
+
+        // Build output from results
+        let content = "";
+        let count = 0;
+        let total = 0;
+
+        for (const { link, priceAuth, rawAuth, ctValue, isGameHidden, gameHiddenReason, isForSale } of results) {
+          count++;
           if (commandType === "scan") {
             const hiddenFlag = isGameHidden
               ? `-# ${emojis.warning} **The gamepass is not accessible. (${gameHiddenReason})**\n`
@@ -717,13 +675,8 @@ client.on("messageCreate", async (message) => {
               content += `Price: ${priceAuth}\n`;
               content += `You will receive: **${ctValue}** ${emojis.robux}\n`;
             }
-            
-            if (hiddenFlag) {
-              content += hiddenFlag;
-            }
-            if (notFsFlag) {
-              content += notFsFlag;
-            }
+            if (hiddenFlag) content += hiddenFlag;
+            if (notFsFlag) content += notFsFlag;
             content += `\n`;
           } else if (commandType === "nct") {
             if (!isNaN(rawAuth)) total += rawAuth;
