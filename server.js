@@ -6,7 +6,9 @@ const mongoose = require("mongoose");
 const moment = require("moment");
 const { HttpsProxyAgent } = require("https-proxy-agent");
 const url = require("url");
+const discordTranscripts = require("discord-html-transcripts");
 const { joinVoiceChannel } = require("@discordjs/voice");
+const cheerio = require("cheerio");
 const cors = require("cors");
 const body_parser = require("body-parser");
 const { exec } = require("node:child_process");
@@ -639,56 +641,46 @@ client.on("messageCreate", async (message) => {
           const isCatalog = itemId && /catalog/i.test(link);
 
           if (isGamePass && itemId) {
-            // Fetch game pass details by scraping the game pass page with the Roblox cookie
-            const gpRes = await fetch(
-              `https://www.roblox.com/game-pass/${itemId}`,
+            // Fetch via Game Pass API
+            let res = await fetch(
+              `https://apis.roblox.com/game-passes/v1/game-passes/${itemId}/details`,
               {
-                headers: {
-                  Cookie: process.env.Cookie,
-                  Accept: "text/html",
-                  "User-Agent": "Mozilla/5.0",
-                },
+                method: "GET",
+                headers: authHeaders(),
               },
             );
-            const gpHtml = await gpRes.text();
-
-            // Extract price from item-container data attributes
-            const priceMatch = gpHtml.match(/data-expected-price="([^"]*)"/);
-            priceAuth = priceMatch ? priceMatch[1] : null;
-            rawAuth = Number(priceAuth);
-
-            // isForSale: buy button must be present and price must exist
-            isForSale =
-              gpHtml.includes('data-button-action="buy"') &&
-              priceMatch !== null;
-
-            // Regional pricing: Roblox shows a different price-tag bundle when regional
-            isRegional =
-              (gpHtml.match(/data-bundlename="PriceTag"/g) || []).length > 1;
-
-            ctValue = !isNaN(rawAuth) ? Math.floor(rawAuth * 0.7) : rawAuth;
-
-            // Extract placeId from the game link embedded in the page
-            const gameLinkMatch = gpHtml.match(/roblox\.com\/games\/([0-9]+)/);
-            const placeId = gameLinkMatch ? gameLinkMatch[1] : null;
-
-            if (placeId) {
-              let checkGame = await fetch(
-                "https://games.roblox.com/v1/games/multiget-place-details?placeIds=" +
-                  placeId,
+            if (res.status === 401 || res.status === 403) {
+              csrfToken = await handler.refreshToken(process.env.Cookie);
+              res = await fetch(
+                `https://apis.roblox.com/game-passes/v1/game-passes/${itemId}/details`,
                 {
                   method: "GET",
                   headers: authHeaders(),
                 },
               );
-              const data = await checkGame.json();
-              if (Array.isArray(data) && data.length === 0) {
+            }
+            const json = await res.json();
+            priceAuth = json.priceInformation.defaultPriceInRobux;
+            isForSale = json.isForSale;
+            rawAuth = Number(priceAuth);
+            isRegional =
+              Array.isArray(json.priceInformation.enabledFeatures) &&
+              json.priceInformation.enabledFeatures.includes("RegionalPricing");
+            ctValue = !isNaN(rawAuth) ? Math.floor(rawAuth * 0.7) : rawAuth;
+            let checkGame = await fetch('https://games.roblox.com/v1/games/multiget-place-details?placeIds='+json.placeId,
+              {
+                  method: "GET",
+                  headers: authHeaders(),
+                });
+            const data = await checkGame.json();
+            console.log(data);
+            if (Array.isArray(data) && data.length === 0) {
+              // nothing found
+              isGameHidden = true;
+            } else if (data.length > 0) {
+              if (data[0].reasonProhibited != "None") {
                 isGameHidden = true;
-              } else if (data.length > 0) {
-                if (data[0].reasonProhibited != "None") {
-                  isGameHidden = true;
-                  gameHiddenReason = data[0].reasonProhibited;
-                }
+                gameHiddenReason = data[0].reasonProhibited;
               }
             }
             
@@ -806,22 +798,29 @@ client.on("messageCreate", async (message) => {
       });
 
       async function fetchGamePassPrice(itemId) {
-        const gpRes = await fetch(
-          `https://www.roblox.com/game-pass/${itemId}`,
+        let res = await fetch(
+          `https://apis.roblox.com/game-passes/v1/game-passes/${itemId}/details`,
           {
-            headers: {
-              Cookie: process.env.Cookie,
-              Accept: "text/html",
-              "User-Agent": "Mozilla/5.0",
-            },
+            method: "GET",
+            headers: authHeaders(),
           },
         );
-        const gpHtml = await gpRes.text();
-        const priceMatch = gpHtml.match(/data-expected-price="([^"]*)"/);
-        const label = priceMatch ? priceMatch[1] : null;
+
+        if (res.status === 401 || res.status === 403) {
+          csrfToken = await handler.refreshToken(process.env.Cookie);
+          res = await fetch(
+            `https://apis.roblox.com/game-passes/v1/game-passes/${itemId}/details`,
+            {
+              method: "GET",
+              headers: authHeaders(),
+            },
+          );
+        }
+
+        const json = await res.json();
         return {
-          price: label !== null ? Number(label) : NaN,
-          label,
+          price: Number(json?.priceInformation?.defaultPriceInRobux),
+          label: json?.priceInformation?.defaultPriceInRobux,
         };
       }
 

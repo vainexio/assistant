@@ -4,34 +4,6 @@
 
 This is a Discord bot application built with Discord.js v13, designed as a multi-purpose bot with features including AI chat (OpenAI), ticket management, Roblox group integration, QR code generation, Discord Nitro link handling, voice channel support, and Google Cloud speech/text-to-speech capabilities. The bot runs on an Express server and uses MongoDB (via Mongoose) for data storage and Firebase Admin for additional backend services. The project originated as a Glitch-hosted template ("vainexio-template-1").
 
-## How to Run
-
-- **Start the bot:** Use the **Run Bot** workflow (`npm start` → `node server.js`)
-- **Node.js version:** 22 (upgraded from original 16 to satisfy firebase-admin, sharp, and openai requirements)
-- **Port:** 3000 (Express HTTP server alongside the Discord bot)
-
-## Required Secrets (all configured)
-
-| Secret | Purpose |
-|--------|---------|
-| `SECRET` | Discord bot token |
-| `MONGOOSE` | MongoDB connection string |
-| `Cookie` | Roblox CSRF cookie |
-| `ROBLOX_API_KEY` | Roblox API key |
-| `PORT` | Express server port |
-
-Additional secrets may be needed for full feature usage (OpenAI keys, Discord account tokens for link generation, Google Cloud credentials).
-
-## Dependency Notes
-
-- Removed the malicious `fs` npm package (Node's built-in `fs` is used instead)
-- Removed unused imports: `discord-html-transcripts`, `cheerio`, `sharp` (imported but never called — removing eliminated associated CVEs)
-- `multer` upgraded to `^2.2.0` (v1.x was blocked due to dicer/busboy CVE)
-- `mongoose` upgraded to `^8.0.0` (v7 was blocked by security policy)
-- `@google-cloud/speech` upgraded to `^7.5.0` (uuid chain fix)
-- `overrides` in package.json force safe transitive versions: `form-data`, `websocket-driver`, `protobufjs`, `brace-expansion@5.0.8`, `uuid@^11.1.1`
-- Result: `npm audit` reports 0 vulnerabilities
-
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
