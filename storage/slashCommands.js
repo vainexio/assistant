@@ -21,7 +21,6 @@ module.exports = {
       description: 'Check group payout eligibility',
       options: [
         { name: 'username', type: 3, description: 'Roblox username', required: true },
-        { name: 'group_id', type: 3, description: 'Roblox Group ID', required: true },
       ]
     },
     {

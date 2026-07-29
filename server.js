@@ -1257,170 +1257,121 @@ client.on("interactionCreate", async (inter) => {
       }
     } 
     else if (cname === "eligible") {
-      let options = inter.options._hoistedOptions;
-      let username = options.find((a) => a.name === "username");
-      let group = options.find((a) => a.name === "group_id");
-      let whitelisted = await whitelist.findOne({ serverId: inter.guild.id, type: 'scanner' });
-      if (!whitelisted) return inter.reply(emojis.warning + " Server not whitelisted.");
+      const options = inter.options._hoistedOptions;
+      const username = options.find((a) => a.name === "username").value;
 
-      await inter.deferReply();
+      const whitelisted = await whitelist.findOne({ serverId: inter.guild.id, type: 'scanner' });
+      if (!whitelisted) return inter.reply({ content: emojis.warning + " Server not whitelisted.", ephemeral: true });
+      if (!whitelisted.groups || whitelisted.groups.length === 0)
+        return inter.reply({ content: emojis.warning + " No groups are registered for this server.", ephemeral: true });
 
-      // get the user object (your handler)
-      let user = await handler.getUser(username.value);
-      if (user.error) return inter.editReply({ content: user.error });
-      if (!user) return inter.editReply({ content: "User not found." });
+      await inter.deferReply({ ephemeral: true });
 
-      // display name fallback
-      const displayName = user.username || user.name || username.value;
-
-      // Put your Roblox Open Cloud API key in an env var
-      const API_KEY = process.env.ROBLOX_API_KEY;
-      if (!API_KEY)
-        return inter.editReply({
-          content: "Roblox API key not configured (ROBLOX_API_KEY).",
-        });
-
-      // Helper: extract numeric group id from either an id string or many URL formats
-      function extractGroupId(input) {
-        if (!input) return null;
-        input = input.trim();
-
-        // If it's already a pure number
-        if (/^\d+$/.test(input)) return input;
-
-        // Common URL patterns
-        const patterns = [
-          /\/groups\/(\d+)/i, // /groups/12345/...
-          /\/communities\/(\d+)/i, // /communities/6648268/...
-          /[?&]id=(\d+)/i, // ?id=12345 or &id=12345
-          /\/places\/(\d+)/i, // sometimes links include place ids (fallback)
-        ];
-
-        for (const p of patterns) {
-          const m = input.match(p);
-          if (m && m[1]) return m[1];
-        }
-
-        // Fallback: find the first long-ish number in the string (5-10 digits)
-        const m = input.match(/\b(\d{5,10})\b/);
-        if (m && m[1]) return m[1];
-
-        return null;
-      }
-
-      const groupInput = group.value;
-      const groupId = extractGroupId(groupInput);
-
-      if (!groupId) {
-        return inter.editReply({
-          content: `${emojis.warning} Could not extract a group ID from "${groupInput}". Please provide a numeric ID or a group/community URL.`,
-        });
-      }
-
-      let registeredGroup = whitelisted.groups.find(g => g === groupId)
-      if (!registeredGroup) return inter.editReply({
-        content: `${emojis.warning} Roblox API authentication failed. Group [${groupId}] is not configured.`,
-      })
-
-      // Build membership URL safely (encode filter)
-      const filter = encodeURIComponent(`user=='users/${user.id}'`);
-      const url = `https://apis.roblox.com/cloud/v2/groups/${groupId}/memberships?maxPageSize=1&filter=${filter}`;
-
-      try {
-        const auth = {
-          method: "GET",
-          headers: {
-            "x-api-key": API_KEY,
-            "Content-Type": "application/json",
-          },
-        };
-
-        const res = await fetch(url, auth);
-
-        if (res.status === 200) {
-          const data = await res.json();
-
-          // Not in group
-          if (!data.groupMemberships || data.groupMemberships.length === 0) {
-            // try to get group name for nicer output (best-effort)
-            let groupName = `Group ${groupId}`;
-            try {
-              const gRes = await fetch(
-                `https://groups.roblox.com/v1/groups/${groupId}`,
-              );
-              if (gRes.ok) {
-                const gJson = await gRes.json();
-                groupName = gJson.name || groupName;
-              }
-            } catch (_) {}
-
-            const groupLink = `https://www.roblox.com/groups/${groupId}`;
-            return inter.editReply({
-              content: `${emojis.warning} **${displayName}** is not a member of **${groupName}**.\nGroup: ${groupLink}`,
-            });
-          }
-
-          // Member found
-          const mem = data.groupMemberships[0];
-          const createTime = mem.createTime; // e.g. "2025-09-01T12:08:56.342Z"
-
-          if (!createTime) {
-            return inter.editReply({
-              content: `Found membership but missing createTime for ${displayName}.`,
-            });
-          }
-
-          // Parse join time and compute eligibility (14 days)
-          const dateObj = new Date(createTime);
-          const unixSeconds = Math.floor(dateObj.getTime() / 1000);
-          const MS_PER_DAY = 24 * 60 * 60 * 1000;
-          const nowMs = Date.now();
-          const daysSince = Math.floor(
-            (nowMs - dateObj.getTime()) / MS_PER_DAY,
-          );
-          const isEligible = daysSince >= 14;
-
-          // Get group name (best-effort)
-          let groupName = `Group ${groupId}`;
+      // Fetch all group names in parallel for the select menu
+      const groupOptions = await Promise.all(
+        whitelisted.groups.map(async (gId) => {
+          let label = `Group ${gId}`;
           try {
-            const gRes = await fetch(
-              `https://groups.roblox.com/v1/groups/${groupId}`,
-            );
-            if (gRes.ok) {
-              const gJson = await gRes.json();
-              groupName = gJson.name || groupName;
+            const res = await fetch(`https://groups.roblox.com/v1/groups/${gId}`);
+            if (res.ok) {
+              const json = await res.json();
+              label = (json.name || label).substring(0, 100);
             }
-          } catch (err) {
-            // ignore - group name is optional anyway
-          }
+          } catch (_) {}
+          return { label, value: gId };
+        })
+      );
 
-          const groupLink = `https://www.roblox.com/groups/${groupId}`;
+      const row = new MessageActionRow().addComponents(
+        new MessageSelectMenu()
+          .setCustomId(`eligible-group:${username}`)
+          .setPlaceholder('Select a group')
+          .addOptions(groupOptions)
+      );
 
-          if (isEligible) {
-            // Per your request: show check + "Eligible: PlayerName (14 days ago)" and Discord relative timestamp
-            return inter.editReply({
-              content: `${emojis.check} **Eligible: ${displayName}** — <t:${unixSeconds}:R>\nGroup: [**${groupName}**](${groupLink})`,
-            });
-          } else {
-            const daysRemaining = 14 - daysSince;
-            return inter.editReply({
-              content: `${emojis.x} **Not eligible: ${displayName}** — needs **${daysRemaining}** more day${daysRemaining === 1 ? "" : "s"} to be eligible. (<t:${unixSeconds}:R>)\nGroup: [**${groupName}**](${groupLink})`,
-            });
-          }
-        } else if (res.status === 401 || res.status === 403) {
-          return inter.editReply({
-            content: "Roblox API authentication failed. Check your x-api-key.",
-          });
-        } else {
-          const errText = await res.text().catch(() => "");
-          return inter.editReply({
-            content: `Roblox API returned ${res.status}: ${errText}`,
-          });
-        }
-      } catch (err) {
-        console.error("Error fetching membership:", err);
-        return inter.editReply({ content: `Request failed: ${err.message}` });
+      return inter.editReply({
+        content: `Select a group to check **${username}**'s eligibility:`,
+        components: [row],
+      });
+    }
+  }
+
+  // ── Select menu: eligible group picker ──────────────────────────────────────
+  if (inter.isSelectMenu() && inter.customId.startsWith('eligible-group:')) {
+    const username = inter.customId.slice('eligible-group:'.length);
+    const groupId = inter.values[0];
+
+    await inter.deferUpdate();
+
+    const API_KEY = process.env.ROBLOX_API_KEY;
+    if (!API_KEY)
+      return inter.editReply({ content: "Roblox API key not configured (ROBLOX_API_KEY).", components: [] });
+
+    try {
+      const [userResult, groupRes] = await Promise.all([
+        handler.getUser(username),
+        fetch(`https://groups.roblox.com/v1/groups/${groupId}`),
+      ]);
+
+      if (userResult.error) return inter.editReply({ content: userResult.error, components: [] });
+
+      const displayName = userResult.username || userResult.name || username;
+      let groupName = `Group ${groupId}`;
+      if (groupRes.ok) {
+        const gJson = await groupRes.json();
+        groupName = gJson.name || groupName;
       }
+      const groupLink = `https://www.roblox.com/groups/${groupId}`;
+
+      const filter = encodeURIComponent(`user=='users/${userResult.id}'`);
+      const url = `https://apis.roblox.com/cloud/v2/groups/${groupId}/memberships?maxPageSize=1&filter=${filter}`;
+      const res = await fetch(url, {
+        method: "GET",
+        headers: { "x-api-key": API_KEY, "Content-Type": "application/json" },
+      });
+
+      if (res.status === 401 || res.status === 403)
+        return inter.editReply({ content: "Roblox API authentication failed. Check your x-api-key.", components: [] });
+
+      if (res.status !== 200) {
+        const errText = await res.text().catch(() => "");
+        return inter.editReply({ content: `Roblox API returned ${res.status}: ${errText}`, components: [] });
+      }
+
+      const data = await res.json();
+
+      if (!data.groupMemberships || data.groupMemberships.length === 0) {
+        return inter.editReply({
+          content: `${emojis.warning} **${displayName}** is not a member of **${groupName}**.\nGroup: ${groupLink}`,
+          components: [],
+        });
+      }
+
+      const mem = data.groupMemberships[0];
+      const createTime = mem.createTime;
+      if (!createTime)
+        return inter.editReply({ content: `Found membership but missing createTime for ${displayName}.`, components: [] });
+
+      const dateObj = new Date(createTime);
+      const unixSeconds = Math.floor(dateObj.getTime() / 1000);
+      const daysSince = Math.floor((Date.now() - dateObj.getTime()) / 86400000);
+      const isEligible = daysSince >= 14;
+
+      if (isEligible) {
+        return inter.editReply({
+          content: `${emojis.check} **Eligible: ${displayName}** — <t:${unixSeconds}:R>\nGroup: [**${groupName}**](${groupLink})`,
+          components: [],
+        });
+      } else {
+        const daysRemaining = 14 - daysSince;
+        return inter.editReply({
+          content: `${emojis.x} **Not eligible: ${displayName}** — needs **${daysRemaining}** more day${daysRemaining === 1 ? "" : "s"} to be eligible. (<t:${unixSeconds}:R>)\nGroup: [**${groupName}**](${groupLink})`,
+          components: [],
+        });
+      }
+    } catch (err) {
+      console.error("Error in eligible select menu:", err);
+      return inter.editReply({ content: `Request failed: ${err.message}`, components: [] });
     }
   }
 });
