@@ -626,7 +626,6 @@ client.on("messageCreate", async (message) => {
           let priceAuth = null;
           let rawAuth = null;
           let ctValue = null;
-          let isRegional = false;
           let isGameHidden = false;
           let gameHiddenReason = "";
           let isForSale = false;
@@ -661,10 +660,6 @@ client.on("messageCreate", async (message) => {
             isForSale =
               gpHtml.includes('data-button-action="buy"') &&
               priceMatch !== null;
-
-            // Regional pricing: Roblox shows a different price-tag bundle when regional
-            isRegional =
-              (gpHtml.match(/data-bundlename="PriceTag"/g) || []).length > 1;
 
             ctValue = !isNaN(rawAuth) ? Math.floor(rawAuth * 0.7) : rawAuth;
 
@@ -712,20 +707,13 @@ client.on("messageCreate", async (message) => {
 
           // Build content based on command
           if (commandType === "scan") {
-            // Regional detection only; no second fetch needed
-            const regionalFlag = isRegional
-              ? `-# ${emojis.warning} **Regional pricing detected**\n`
-              : "";
             const hiddenFlag = isGameHidden
-            ? `-# ${emojis.warning} **The gamepass is not accessible. (${gameHiddenReason})**\n`
-              : ""
-            const notFsFlag = !isForSale ? `-# ${emojis.warning} **The gamepass is not on sale.**\n` : ""
+              ? `-# ${emojis.warning} **The gamepass is not accessible. (${gameHiddenReason})**\n`
+              : "";
+            const notFsFlag = !isForSale ? `-# ${emojis.warning} **The gamepass is not on sale.**\n` : "";
 
             content += `${count}. ${link}\n`;
-            if (regionalFlag) {
-              content += `Price: **${priceAuth}**\n${regionalFlag}`;
-            }
-            if (!isNaN(rawAuth) && !isRegional) {
+            if (!isNaN(rawAuth)) {
               content += `Price: ${priceAuth}\n`;
               content += `You will receive: **${ctValue}** ${emojis.robux}\n`;
             }
