@@ -1265,7 +1265,7 @@ client.on("interactionCreate", async (inter) => {
       if (!whitelisted.groups || whitelisted.groups.length === 0)
         return inter.reply({ content: emojis.warning + " No groups are registered for this server.", ephemeral: true });
 
-      await inter.deferReply({ ephemeral: true });
+      await inter.deferReply();
 
       // Fetch all group names in parallel for the select menu
       const groupOptions = await Promise.all(
